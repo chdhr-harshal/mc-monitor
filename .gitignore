@@ -108,3 +108,6 @@ ENV/
 *fdb_latexmk
 *.aux
 *.pyc
+
+# .DStore
+*.DS_Store
