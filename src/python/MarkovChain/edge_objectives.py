@@ -1,364 +1,272 @@
 #!/usr/local/bin/python
 
 """
-Child class of Markov Chain for relevant methods
-related to the edge objective function and algorithms
+Edge objective functions
 """
 
-from markov_chain import *
+from __future__ import division
+from markov_chain import MarkovChain
 import copy
+import random
+import numpy as np
+import networkx as nx
+from multiprocessing import Pool
+from itertools import combinations
 
-ROUNDING_DIGITS = 10
+np.seterr(all="raise")
 
-class MCEdgeObjectives(MarkovChain):
-    def __init__(self,
-                num_nodes,
-                num_objects,
-                total_time,
-                transition_matrix=None,
-                object_distribution=None,
-                G=None):
-        # Create Markov Chain with given arguments
-        super(MCEdgeObjectives, self).__init__(num_nodes,
-                                        num_objects,
-                                        total_time,
-                                        transition_matrix,
-                                        object_distribution,
-                                        G)
-        # Calculate betweenness centrality of edges at the beginning
-        self.betweenness_centrality = nx.edge_betweenness_centrality(self.G, weight='weight')
 
-    # Objective function calculation methods
-    def calculate_D_i(self, E, i):
-        D = self.G.edges()
-        D_minus_E = list(set(D) - set(E))
-        D_i_edges = filter(lambda (x,y):x==i, D_minus_E)
-        return [edge[1] for edge in D_i_edges]
+# ------------------------------------------------------------
+# Naive Greedy algorithm
+# ------------------------------------------------------------
 
-    def calculate_S_i(self, E, i):
-        S_i_edges = filter(lambda (x,y):x==i, E)
-        S_i = 0
+def calculate_F(D):
+    F = np.float128(0.0)
 
-        for edge in S_i_edges:
-            source = edge[0]
-            target = edge[1]
-            S_i += self.G.get_edge_data(source, target)['weight']
+    for u in mc.G.nodes():
+        F_u = np.float128(0.0)
+        successors = mc.G[u]
 
-        return S_i
+        # Calculate rho
+        rho = np.float128(0.0)
+        for v in successors:
+            if (u,v) in D:
+                rho += successors[v]['weight']
 
-    def calculate_f_i(self, E, i):
-        num_objects = self.nodes_list[i].num_objects
-        S_i = self.calculate_S_i(E, i)
-        D_i = self.calculate_D_i(E, i)
+        # Calcualte F_u
+        x_dash = mc.G.node[u]['num_items'] * (1 - rho)
 
-        A = num_objects * (1 - S_i)
-        B = 0.0
+        for v in successors:
+            if (u,v) not in D:
+                P_dash = successors[v]['weight'] / (1 - rho)
+                F_u += P_dash * (1 - P_dash)
 
-        for k in D_i:
-            p_ik = self.G.get_edge_data(i, k)['weight']
-            C = p_ik/(1 - S_i)
-            B += C * (1 - C)
+        F += x_dash * F_u
 
-        return A * B
+    return (D, F)
 
-    def calculate_f(self, E):
-        f = 0.0
-        nodes = copy.deepcopy(self.G.nodes())
-        for i in nodes:
-            f += self.calculate_f_i(E, i)
+def naive_greedy_parallel(k):
+    pool = Pool(24)
+    # print "Created pool of 24 processes"
+    picked_set = []
 
-        return f
+    for i in xrange(k):
+        candidate_edges = set(mc.G.edges()) - set(picked_set)
+        candidate_sets = [picked_set + [e] for e in candidate_edges]
 
-    # Naive implementation of Greedy algorithm
-    def naive_greedy(self, k):
-        E = self.G.edges()
-        picked_edges = []
-        for i in xrange(k):
-            objective_values = {}
-            baseline_objective = self.calculate_f(picked_edges)
-            for e in E:
-                objective_values[e] = baseline_objective - self.calculate_f(picked_edges + [e])
-            greedy_choice = max(objective_values, key=objective_values.get)
-            picked_edges.append(greedy_choice)
-            E.remove(greedy_choice)
+        objective_values = pool.imap(calculate_F, candidate_sets)
+        objective_values = sorted(objective_values, key=lambda x: x[1])
+        picked_set = objective_values[0][0]
 
-        greedy_edges = picked_edges
-        greedy_objective_value = self.calculate_f(greedy_edges)
+    pool.close()
+    pool.join()
 
-        return (greedy_edges, greedy_objective_value)
+    return calculate_F(picked_set)
 
-    # Smart implementation of Greedy algorithm
+# ------------------------------------------------------------
+# Smart Greedy algorithm
+# ------------------------------------------------------------
 
-    # Auxiliary method for the second summation
-    def calculate_B_i(self, i, S_i, D_i):
-        B_i = 0.0
+def calculate_smart_F(args):
+    e = args[0]
+    rho_dict = args[1]
+    B_dict = args[2]
 
-        for k in D_i:
-            try:
-                p_ik = self.G.get_edge_data(i, k)['weight']
-            except:
-                p_ik = 0
-            B_i += p_ik * (1 - S_i - p_ik)
+    F = np.float128(0.0)
+    rho_dash_dict = {}
+    B_dash_dict = {}
 
-        return B_i
+    for u in mc.G.nodes():
+        x = mc.G.node[u]['num_items']
 
-    def calculate_C_i(self, i,  D_i):
-        C_i = 0.0
-
-        for k in D_i:
-            try:
-                p_ik = self.G.get_edge_data(i, k)['weight']
-            except:
-                p_ik = 0
-
-        return C_i
-
-    def get_smart_greedy_choice_2(self, S_dict, B_dict, candidate_edges, all_nodes, picked_edges):
-        objective_values = {}
-        S_matrix = {}
-        B_matrix = {}
-        for a in xrange(len(candidate_edges)):
-            S_matrix[a] = copy.deepcopy(S_dict)
-            B_matrix[a] = copy.deepcopy(B_dict)
-            (x,y) = candidate_edges[a]
-            p_xy = self.G.get_edge_data(x,y)['weight']
-            num_objects = self.nodes_list[x].num_objects
-
-            new_S = S_dict[x] + p_xy
-            new_B = B_dict[x] - 2*p_xy*(1 - new_S)
-
-            if new_S == 1:
-                new = 0
-            else:
-                new = new_B/(1 - new_S)
-
-            if S_dict[x] == 1:
-                old = 0
-            else:
-                old = B_dict[x]/(1 - S_dict[x])
-
-            S_matrix[a][x] = new_S
-            B_matrix[a][x] = new_B
-
-            change = num_objects*(new - old)
-            objective_values[a] = change
-
-        greedy_choice_index = min(objective_values, key=objective_values.get)
-        greedy_choice_edge = candidate_edges[greedy_choice_index]
-        return (greedy_choice_edge, S_matrix[greedy_choice_index], B_matrix[greedy_choice_index])
-
-    def get_smart_greedy_choice(self, S_dict, D_dict, B_dict, candidate_edges, all_nodes, picked_edges):
-        objective_values = {}
-        S_matrix = {}
-        D_matrix = {}
-        B_matrix = {}
-
-        for a in xrange(len(candidate_edges)):
-            (x,y) = candidate_edges[a]
-            f = 0.0
-            S_matrix[a] = {}
-            D_matrix[a] = {}
-            B_matrix[a] = {}
-            for node_i in all_nodes:
-                num_objects = self.nodes_list[node_i].num_objects
-                node_i_id = self.nodes_list[node_i].node_id
-                I = int(x==node_i_id)
-                try:
-                    p_iy = self.G.get_edge_data(node_i_id, y)['weight']
-                except:
-                    p_iy = 0
-
-                S_matrix[a][node_i] = S_dict[node_i] + I*p_iy
-                if I:
-                    D_matrix[a][node_i] = set(D_dict[node_i]) - set([y])
-                else:
-                    D_matrix[a][node_i] = D_dict[node_i]
-
-                C_i = self.calculate_C_i(node_i_id, D_dict[node_i])
-                B_matrix[a][node_i] = B_dict[node_i] - I*(2*p_iy*(1-S_dict[node_i] - p_iy))
-
-                if S_matrix[a][node_i] < 1:
-                    f += num_objects * B_matrix[a][node_i] / (1 - S_matrix[a][node_i])
-                else:
-                    f += 0
-
-            objective_values[a] = f
-
-        greedy_choice_index = min(objective_values, key=objective_values.get)
-        greedy_choice_edge = candidate_edges[greedy_choice_index]
-        S_dict = S_matrix[greedy_choice_index]
-        D_dict = D_matrix[greedy_choice_index]
-        B_dict = B_matrix[greedy_choice_index]
-        return (greedy_choice_edge, S_dict, D_dict, B_dict)
-
-    def smart_greedy(self, k):
-        E = copy.deepcopy(self.G.edges())
-        D = copy.deepcopy(self.G.edges(data=True))
-        U = copy.deepcopy(self.nodes_list.keys())
-        picked_edges = []
-
-        S_dict = {}
-        B_dict = {}
-        D_dict = {}
-
-        for i in U:
-            S_dict[i] = self.calculate_S_i([], self.nodes_list[i].node_id)
-            D_dict[i] = self.calculate_D_i([], self.nodes_list[i].node_id)
-            B_dict[i] = self.calculate_B_i(self.nodes_list[i].node_id, S_dict[i], D_dict[i])
-
-        while len(picked_edges) < k:
-            smart_greedy_choice = self.get_smart_greedy_choice(S_dict, D_dict, B_dict, E, U, picked_edges)
-            picked_edges.append(smart_greedy_choice[0])
-            S_dict = smart_greedy_choice[1]
-            D_dict = smart_greedy_choice[2]
-            B_dict = smart_greedy_choice[3]
-            E.remove(smart_greedy_choice[0])
-
-        greedy_edges = picked_edges
-        greedy_objective_value = self.calculate_f(greedy_edges)
-        return (greedy_edges, greedy_objective_value)
-
-    def smart_greedy_2(self, k):
-        E = copy.deepcopy(self.G.edges())
-        D = copy.deepcopy(self.G.edges(data=True))
-        U = copy.deepcopy(self.nodes_list.keys())
-        picked_edges = []
-
-        S_dict = {}
-        D_dict = {}
-        B_dict = {}
-
-        for i in U:
-            S_dict[i] = self.calculate_S_i([], self.nodes_list[i].node_id)
-            D_dict[i] = self.calculate_D_i([], self.nodes_list[i].node_id)
-            B_dict[i] = self.calculate_B_i(self.nodes_list[i].node_id, S_dict[i], D_dict[i])
-
-        while len(picked_edges) < k:
-            smart_greedy_choice = self.get_smart_greedy_choice_2(S_dict, B_dict, E, U, picked_edges)
-            picked_edges.append(smart_greedy_choice[0])
-            S_dict = smart_greedy_choice[1]
-            B_dict = smart_greedy_choice[2]
-            E.remove(smart_greedy_choice[0])
-
-        greedy_edges = picked_edges
-        greedy_objective_value = self.calculate_f(greedy_edges)
-        return (greedy_edges, greedy_objective_value)
-
-    # Dynamic programming algorithm
-    def calculate_ISOL(self, i, k):
-        E_i = self.G.edges(i)
-        candidate_sets = []
-        candidate_sets.append([])
-
-        for j in  range(1, k+1):
-            for x in itertools.combinations(E_i, j):
-                candidate_sets.append(list(x))
-
-        objective_values = {}
-        for j in xrange(len(candidate_sets)):
-            objective_values[j] = self.calculate_f_i(candidate_sets[j], i)
-
-        min_index = min(objective_values, key=objective_values.get)
-        ISOL_edge_set = candidate_sets[min_index]
-        ISOL_value = objective_values[min_index]
-        return (ISOL_edge_set, ISOL_value)
-
-    def calculate_SOL(self, i, k):
-        if k < 0:
-            return ([], np.infty)
-        if i >= self.num_nodes:
-            return ([], 0)
-
-        if not np.isnan(self.SOL_matrix[i][k]):
-            return (self.SOL_edge_set_matrix[i][k], self.SOL_matrix[i][k])
-
-        objective_values = {}
-        candidate_sets = [0 for x in xrange(k+1)]
-        for k_i in xrange(k+1):
-            ISOL = self.calculate_ISOL(i, k_i)
-            ISOL_value = ISOL[1]
-            ISOL_edge_set = ISOL[0]
-            SOL = self.calculate_SOL(i+1, k-k_i)
-            SOL_value = SOL[1]
-            SOL_edge_set = SOL[0]
-            candidate_sets[k_i] = ISOL_edge_set + SOL_edge_set
-            objective_values[k_i] = ISOL_value + SOL_value
-
-        min_index = min(objective_values, key=objective_values.get)
-        SOL_value = objective_values[min_index]
-        SOL_edge_set = candidate_sets[min_index]
-        return (SOL_edge_set, SOL_value)
-
-    def dp_algorithm(self, k):
-        self.SOL_matrix = np.full((self.num_nodes, k+1), np.nan, dtype=float)
-        self.SOL_edge_set_matrix = np.zeros((self.num_nodes, k+1), dtype=np.ndarray)
-
-        for i in reversed(xrange(self.num_nodes)):
-            for k_prime in xrange(k+1):
-                SOL = self.calculate_SOL(i, k_prime)
-                self.SOL_matrix[i][k_prime] = SOL[1]
-                self.SOL_edge_set_matrix[i][k_prime] = SOL[0]
-        return (self.SOL_edge_set_matrix[0][k], self.SOL_matrix[0][k])
-
-    # Other baseline to compare
-
-    # Top k edges with highest betweenness centrality
-    def highest_betweenness_centrality_edges(self, k):
-        sorted_edges = sorted(self.betweenness_centrality, key=self.betweenness_centrality.get)
-        sorted_edges = [x for x in reversed(sorted_edges)][:k]
-        edges_set = [(x[0],x[1]) for x in sorted_edges]
-        objective_value = self.calculate_f(edges_set)
-        return (edges_set, objective_value)
-
-    # Top k edges with highest probability
-    def highest_probability_edges(self, k):
-        sorted_edges = sorted(self.G.edges(data=True), key=lambda(source, target, data): data)
-        sorted_edges = [x for x in reversed(sorted_edges)][:k]
-        edges_set = [(x[0],x[1]) for x in sorted_edges]
-        objective_value = self.calculate_f(edges_set)
-        return (edges_set, objective_value)
-
-    # Top k edges with highest items crossing them
-    def highest_item_edges(self, k):
-        item_nodes = {}
-        for node in self.nodes_list:
-            item_nodes[node] = self.nodes_list[node].num_objects
-        E = self.G.edges()
-        item_edges = {}
-        for e in E:
-            source = e[0]
-            target = e[1]
-            item_edges[e] = item_nodes[source]*self.G.get_edge_data(source, target)['weight']
-        item_edges = sorted(item_edges, key=item_edges.get)
-        sorted_edges = [x for x in reversed(item_edges)][:k]
-        edges_set = [(x[0],x[1]) for x in sorted_edges]
-        objective_value = self.calculate_f(edges_set)
-        return (edges_set, objective_value)
-
-    # Randomly chosen k edges
-    def random_edges(self, k):
-        all_edges = self.G.edges()
-        edges_set = [all_edges[x] for x in np.random.choice(len(all_edges), k, replace=False)]
-        objective_value = self.calculate_f(edges_set)
-        return (edges_set, objective_value)
-
-    # Get evolution of objective with increasing k
-    def get_evolution(self, method, k):
-        dataframe = []
-        if method == self.smart_greedy:
-            greedy_edges_set = method(k)[0]
-            for i in xrange(k+1):
-                row = {}
-                row['k'] = i
-                # row['edges_set'] = greedy_edges_set[:i]
-                row['objective_value'] = self.calculate_f(greedy_edges_set[:i])
-                dataframe.append(row)
+        if u == e[0]:
+            P = mc.G.edge[u][e[1]]['weight']
         else:
-            for i in xrange(k+1):
-                row = {}
-                result = method(i)
-                row['k'] = i
-                # row['edges_set'] = result[0]
-                row['objective_value'] = result[1]
-                dataframe.append(row)
-        return dataframe
+            P = 0
+
+        rho_dash_dict[u] = rho_dict[u] + P
+        B_dash_dict[u] = B_dict[u] - (2 * P * (1 - rho_dict[u] - P))
+
+        if rho_dash_dict[u] < 1:
+            F += x * B_dash_dict[u] / (1 - rho_dash_dict[u])
+        else:
+            F += 0
+
+    return (e, F, rho_dash_dict, B_dash_dict)
+
+def smart_greedy_parallel(k):
+    pool = Pool(24)
+    # print "Created pool of 24 processes"
+    picked_set = []
+
+    rho_dict = {}
+    B_dict = {}
+
+    for u in mc.G.nodes():
+        rho_dict[u] = np.float128(0.0)
+        B_dict[u] = np.float128(0.0)
+
+        successors = mc.G[u]
+        for v in successors:
+            P = successors[v]['weight']
+            B_dict[u] += P * (1 - P)
+
+    while len(picked_set) < k:
+        candidate_edges = set(mc.G.edges()) - set(picked_set)
+        args = [(candidate_edge, rho_dict, B_dict) for candidate_edge in candidate_edges]
+
+        objective_values = pool.imap(calculate_smart_F, args)
+        objective_values = sorted(objective_values, key=lambda x: x[1])
+
+        picked_edge = objective_values[0][0]
+        rho_dict = objective_values[0][2]
+        B_dict = objective_values[0][3]
+        picked_set.append(picked_edge)
+
+    pool.close()
+    pool.join()
+
+    return calculate_F(picked_set)
+
+# ------------------------------------------------------------
+# Dynamic programming algorithm
+# ------------------------------------------------------------
+
+def calculate_ISOL(i, k):
+    E_i = mc.G.edges(i)
+    candidate_sets = []
+    candidate_sets.append([])
+
+    for j in range(1, k+1):
+        for x in combinations(E_i, j):
+            candidate_sets.append(list(x))
+
+    objective_values = {}
+    for j in xrange(len(candidate_sets)):
+        F_i = np.float128(0.0)
+        successors = mc.G[i]
+        # Calculate rho
+        rho = np.float128(0.0)
+        for v in successors:
+            if (i,v) in candidate_sets[j]:
+                rho += successors[v]['weight']
+        # Calculate F_i
+        x_dash = mc.G.node[i]['num_items'] * (1 - rho)
+        for v in successors:
+            if (i,v) not in candidate_sets[j]:
+                P_dash = successors[v]['weight'] / (1 - rho)
+                F_i += P_dash * (1 - P_dash)
+        F_i = x_dash * F_i
+        objective_values[j] = F_i
+
+
+    min_index = min(objective_values, key=objective_values.get)
+    ISOL_edge_set = candidate_sets[min_index]
+    ISOL_value = objective_values[min_index]
+    return (ISOL_edge_set, ISOL_value)
+
+def calculate_SOL(i, k, SOL_matrix, SOL_edge_set_matrix):
+    if k < 0:
+        return ([], np.infty)
+    if i >= mc.num_nodes:
+        return ([], 0)
+
+    if not np.isnan(SOL_matrix[i][k]):
+        return (SOL_edge_set_matrix[i][k], SOL_matrix[i][k])
+
+    objective_values = {}
+    candidate_sets = [0 for x in xrange(k+1)]
+    for k_i in xrange(k+1):
+        ISOL = calculate_ISOL(i, k_i)
+        ISOL_value = ISOL[1]
+        ISOL_edge_set = ISOL[0]
+        SOL = calculate_SOL(i+1, k - k_i, SOL_matrix, SOL_edge_set_matrix)
+        SOL_value = SOL[1]
+        SOL_edge_set = SOL[0]
+        candidate_sets[k_i] = ISOL_edge_set + SOL_edge_set
+        objective_values[k_i] = ISOL_value + SOL_value
+
+    min_index = min(objective_values, key=objective_values.get)
+    SOL_value = objective_values[min_index]
+    SOL_edge_set = candidate_sets[min_index]
+    return (SOL_edge_set, SOL_value)
+
+def dp_algorithm(k):
+    SOL_matrix = np.full((mc.num_nodes, k+1), np.nan, dtype=float)
+    SOL_edge_set_matrix = np.zeros((mc.num_nodes, k+1), dtype=np.ndarray)
+
+    for i in reversed(xrange(mc.num_nodes)):
+        for k_prime in xrange(k+1):
+            SOL = calculate_SOL(i, k_prime, SOL_matrix, SOL_edge_set_matrix)
+            SOL_matrix[i][k_prime] = SOL[1]
+            SOL_edge_set_matrix[i][k_prime] = SOL[0]
+
+    return (SOL_edge_set_matrix[0][k], SOL_matrix[0][k])
+
+# Brute force
+def brute_force_edges(k):
+    pool = Pool(24)
+    # print "Created pool of 24 processes"
+    candidate_sets = combinations(mc.G.edges(), k)
+
+    objective_values = pool.imap(calculate_F, candidate_sets)
+    objective_values = sorted(objective_values, key=lambda x: x[1])
+
+    pool.close()
+    pool.join()
+
+    return objective_values[0]
+
+# Other baselines
+
+# Top k edges with highest betweenness centrality
+def highest_betweenness_centrality_edges(k):
+    betweenness_centrality = nx.edge_betweenness_centrality(mc.G, weight='weight')
+    sorted_edges = sorted(betweenness_centrality, key=betweenness_centrality.get)
+    sorted_edges = [x for x in reversed(sorted_edges)][:k]
+    edges_set = [(x[0],x[1]) for x in sorted_edges]
+    return calculate_F(edges_set)
+
+# Top k edges with highest probability
+def highest_probabibility_edges(k):
+    sorted_edges = sorted(mc.G.edges(data=True), key=lambda(source, target, data): data)
+    sorted_edges = [x for x in reversed(sorted_edges)][:k]
+    edges_set = [(x[0],x[1]) for x in sorted_edges]
+    return calculate_F(edges_set)
+
+# Top k edges with highest items crossing
+def highest_item_edges(k):
+    item_nodes = nx.get_node_attributes(mc.G, 'num_items')
+    E = mc.G.edges()
+    item_edges = {}
+    for e in E:
+        source = e[0]
+        target = e[1]
+        item_edges[e] = item_nodes[source]*mc.G[source][target]['weight']
+    item_edges = sorted(item_edges, key=item_edges.get)
+    sorted_edges = [x for x in reversed(item_edges)][:k]
+    edges_set = [(x[0],x[1]) for x in sorted_edges]
+    return calculate_F(edges_set)
+
+# Random k edges
+def random_edges(k):
+    all_edges = mc.G.edges()
+    edges_set = [all_edges[x] for x in np.random.choice(len(all_edges), k, replace=False)]
+    return calculate_F(edges_set)
+
+if __name__ == "__main__":
+    n = np.random.randint(10, 20)
+    num_items = np.random.randint(n, n*100)
+    distribution = np.random.choice(['direct', 'inverse', 'uniform'])
+    mc = MarkovChain(n, num_items, distribution)
+    k = np.random.randint(1, len(mc.G.edges()))
+    print "n={}, k={}, num_items={}, distribution={}".format(n,k,num_items,distribution)
+
+    print "Naive Greedy: {}".format(naive_greedy_parallel(3))
+    print "Smart Greedy: {}".format(smart_greedy_parallel(3))
+    print "Dynamic programming: {}".format(dp_algorithm(3))
+    print "Brute force: {}".format(brute_force_edges(3))
+    # print "Betweenness centrality: {}".format(highest_betweenness_centrality_edges(3))
+    # print "Probability: {}".format(highest_probabibility_edges(3))
+    # print "Items: {}".format(highest_item_edges(3))
+    # print "Random: {}".format(random_edges(3))
