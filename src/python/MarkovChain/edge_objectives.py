@@ -2,6 +2,13 @@
 
 """
 Edge objective functions
+
+Algorithms implemented:
+    1. naive_greedy_parallel - In each iteration pick 1 edge greedily.
+    2. naive_greedy_heuristic - Pick all k edges at once greedily.
+    3. smart_greedy_parallel - In each iteration pick 1 edge smart greedily.
+    4. smart_greedy_heuristic - In each iteration pick "edges_per_step" number of edge smart greedily.
+    5. dp_algorithm - Dynamic programming algorithm to pick k edges.
 """
 
 from __future__ import division
@@ -11,10 +18,11 @@ import random
 import numpy as np
 import networkx as nx
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 from itertools import combinations
 
 np.seterr(all="raise")
-
+cores = cpu_count()
 
 # ------------------------------------------------------------
 # Naive Greedy algorithm
@@ -41,13 +49,17 @@ def calculate_F(D):
                 P_dash = successors[v]['weight'] / (1 - rho)
                 F_u += P_dash * (1 - P_dash)
 
-        F += x_dash * F_u
+        F_u = x_dash * F_u
+
+        if np.abs(F_u) < 1e-5:
+            F += 0
+        else:
+            F += F_u
 
     return (D, F)
 
 def naive_greedy_parallel(k):
-    pool = Pool(24)
-    # print "Created pool of 24 processes"
+    pool = Pool(cores)
     picked_set = []
 
     for i in xrange(k):
@@ -63,6 +75,22 @@ def naive_greedy_parallel(k):
 
     return calculate_F(picked_set)
 
+def naive_greedy_heuristic(k):
+    pool = Pool(cores)
+    picked_set = []
+
+    candidate_edges = [[x] for x in set(mc.G.edges()) - set(picked_set)]
+
+    objective_values = pool.imap(calculate_F, candidate_edges)
+    objective_values = sorted(objective_values, key=lambda x: x[1])
+
+    picked_set = [x[0][0] for x in objective_values[:k]]
+
+    pool.close()
+    pool.join()
+
+    return calculate_F(picked_set)
+
 # ------------------------------------------------------------
 # Smart Greedy algorithm
 # ------------------------------------------------------------
@@ -71,6 +99,7 @@ def calculate_smart_F(args):
     e = args[0]
     rho_dict = args[1]
     B_dict = args[2]
+    picked_set = list(args[3]) + list([e])
 
     F = np.float128(0.0)
     rho_dash_dict = {}
@@ -84,19 +113,29 @@ def calculate_smart_F(args):
         else:
             P = 0
 
+        successor_edges = [(u,v) for v in mc.G.successors(u)]
+        if set(successor_edges) - set(picked_set) == set():
+            rho_dash_dict[u] = 1
+            B_dash_dict[u] = 0
+            continue
+
         rho_dash_dict[u] = rho_dict[u] + P
         B_dash_dict[u] = B_dict[u] - (2 * P * (1 - rho_dict[u] - P))
 
         if rho_dash_dict[u] < 1:
-            F += x * B_dash_dict[u] / (1 - rho_dash_dict[u])
+            F_u = x * B_dash_dict[u] / (1 - rho_dash_dict[u])
+            if np.abs(F_u) < 1e-5:
+                F += 0
+            else:
+                F += F_u
         else:
             F += 0
+
 
     return (e, F, rho_dash_dict, B_dash_dict)
 
 def smart_greedy_parallel(k):
-    pool = Pool(24)
-    # print "Created pool of 24 processes"
+    pool = Pool(cores)
     picked_set = []
 
     rho_dict = {}
@@ -113,7 +152,7 @@ def smart_greedy_parallel(k):
 
     while len(picked_set) < k:
         candidate_edges = set(mc.G.edges()) - set(picked_set)
-        args = [(candidate_edge, rho_dict, B_dict) for candidate_edge in candidate_edges]
+        args = [(candidate_edge, rho_dict, B_dict, picked_set) for candidate_edge in candidate_edges]
 
         objective_values = pool.imap(calculate_smart_F, args)
         objective_values = sorted(objective_values, key=lambda x: x[1])
@@ -122,6 +161,52 @@ def smart_greedy_parallel(k):
         rho_dict = objective_values[0][2]
         B_dict = objective_values[0][3]
         picked_set.append(picked_edge)
+
+    pool.close()
+    pool.join()
+
+    return calculate_F(picked_set)
+
+def smart_greedy_heuristic(k, edges_per_step):
+    pool = Pool(cores)
+    picked_set = []
+
+    rho_dict = {}
+    B_dict = {}
+
+    for u in mc.G.nodes():
+        rho_dict[u] = np.float128(0.0)
+        B_dict[u] = np.float128(0.0)
+
+        successors = mc.G[u]
+        for v in successors:
+            P = successors[v]['weight']
+            B_dict[u] += P * (1-P)
+
+    while len(picked_set) < k:
+        candidate_edges = set(mc.G.edges()) - set(picked_set)
+        args = [(candidate_edge, rho_dict, B_dict, picked_set) for candidate_edge in candidate_edges]
+
+        objective_values = pool.imap(calculate_smart_F, args)
+        objective_values = sorted(objective_values, key=lambda x: x[1])
+
+        for i in xrange(edges_per_step):
+            picked_edge = objective_values[i][0]
+            picked_set.append(picked_edge)
+
+        # Update rho dict and B_dict
+        for u in mc.G.nodes():
+            rho_dict[u] = np.float128(0.0)
+            B_dict[u] = np.float128(0.0)
+            successor_edges = [(u,v) for v in mc.G[u]]
+            for (u,v) in successor_edges:
+                if (u,v) in picked_set:
+                    rho_dict[u] += mc.G[u][v]['weight']
+
+            for (u,v) in successor_edges:
+                if (u,v) not in picked_set:
+                    P = mc.G[u][v]['weight']
+                    B_dict[u] += P * ( 1 - rho_dict[u] - P)
 
     pool.close()
     pool.join()
@@ -205,8 +290,7 @@ def dp_algorithm(k):
 
 # Brute force
 def brute_force_edges(k):
-    pool = Pool(24)
-    # print "Created pool of 24 processes"
+    pool = Pool(cores)
     candidate_sets = combinations(mc.G.edges(), k)
 
     objective_values = pool.imap(calculate_F, candidate_sets)
@@ -228,7 +312,7 @@ def highest_betweenness_centrality_edges(k):
     return calculate_F(edges_set)
 
 # Top k edges with highest probability
-def highest_probabibility_edges(k):
+def highest_probability_edges(k):
     sorted_edges = sorted(mc.G.edges(data=True), key=lambda(source, target, data): data)
     sorted_edges = [x for x in reversed(sorted_edges)][:k]
     edges_set = [(x[0],x[1]) for x in sorted_edges]
@@ -254,19 +338,41 @@ def random_edges(k):
     edges_set = [all_edges[x] for x in np.random.choice(len(all_edges), k, replace=False)]
     return calculate_F(edges_set)
 
-if __name__ == "__main__":
-    n = np.random.randint(10, 20)
-    num_items = np.random.randint(n, n*100)
-    distribution = np.random.choice(['direct', 'inverse', 'uniform'])
-    mc = MarkovChain(n, num_items, distribution)
-    k = np.random.randint(1, len(mc.G.edges()))
-    print "n={}, k={}, num_items={}, distribution={}".format(n,k,num_items,distribution)
+# ------------------------------------------------------------
+# Evolution with k
+# ------------------------------------------------------------
 
-    print "Naive Greedy: {}".format(naive_greedy_parallel(3))
-    print "Smart Greedy: {}".format(smart_greedy_parallel(3))
-    print "Dynamic programming: {}".format(dp_algorithm(3))
-    print "Brute force: {}".format(brute_force_edges(3))
-    # print "Betweenness centrality: {}".format(highest_betweenness_centrality_edges(3))
-    # print "Probability: {}".format(highest_probabibility_edges(3))
-    # print "Items: {}".format(highest_item_edges(3))
-    # print "Random: {}".format(random_edges(3))
+# Get evolution of objective with increasing k
+def get_evolution(method, k, edges_per_step=10):
+    dataframe = []
+    if method == smart_greedy_parallel:
+        edges_set = method(k)[0]
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "edges"
+            row['k'] = i
+            row['objective_value'] = calculate_F(edges_set[:i])[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    elif method == smart_greedy_heuristic:
+        edges_set = method(k, edges_per_step)[0]
+        for i in range(0, k, edges_per_step):
+            row = {}
+            row['objective'] = "edges"
+            row['k'] = i
+            row['objective_value'] = calculate_F(edges_set[:i])[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    else:
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "edges"
+            result = method(i)
+            row['k'] = i
+            row['objective_value'] = result[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    return dataframe

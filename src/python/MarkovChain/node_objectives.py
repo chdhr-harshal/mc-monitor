@@ -1,6 +1,11 @@
 #!/usr/local/bin/python
 """
 Node objective functions
+
+Algorithms implemented:
+    1. naive_greedy_parallel - In each iteration pick 1 node greedily.
+    2. naive_greedy_heuristic - Pick all k nodes at once greedily.
+    3. smart_greedy_parallel - In each iteration pick 1 node smart greedily.
 """
 
 from __future__ import division
@@ -10,9 +15,16 @@ import random
 import numpy as np
 import networkx as nx
 from multiprocessing import Pool
+from multiprocessing import cpu_count()
 from itertools import combinations
+import argparse
 
 np.seterr(all="raise")
+cores = cpu_count()
+
+# ------------------------------------------------------------
+# Naive Greedy algorithm
+# ------------------------------------------------------------
 
 def calculate_F(S):
     F = np.float128(0.0)
@@ -40,13 +52,16 @@ def calculate_F(S):
                 P_dash = mc.G.edge[u][v]['weight'] / (1 - rho)
                 F_u += P_dash * (1 - P_dash)
 
-        F += x_dash * F_u
+        F_u =  x_dash * F_u
+        if np.abs(F_u) < 1e-5:
+            F += 0
+        else:
+            F += F_u
 
     return (S, F)
 
 def naive_greedy_parallel(k):
-    pool = Pool(24)
-    # print "Created pool of 24 processes"
+    pool = Pool(cores)
     picked_set = []
     for i in xrange(k):
         candidate_nodes = set(mc.G.nodes()) - set(picked_set)
@@ -62,10 +77,31 @@ def naive_greedy_parallel(k):
 
     return calculate_F(picked_set)
 
+def naive_greedy_heuristic(k):
+    pool = Pool(cores)
+    picked_set = []
+
+    candidate_nodes = [[x] for x in set(mc.G.nodes()) - set(picked_set)]
+
+    objective_values = pool.imap(calculate_F, candidate_nodes)
+    objective_values = sorted(objective_values, key=lambda x: x[1])
+
+    picked_set = [x[0][0] for x in objective_values[:k]]
+
+    pool.close()
+    pool.join()
+
+    return calculate_F(picked_set)
+
+# ------------------------------------------------------------
+# Smart Greedy algorithm
+# ------------------------------------------------------------
+
 def calculate_smart_F(args):
     v = args[0]
     rho_dict = args[1]
     B_dict = args[2]
+    picked_set = list(args[3]) + list([v])
 
     F = np.float128(0.0)
     rho_dash_dict = {}
@@ -80,19 +116,28 @@ def calculate_smart_F(args):
         else:
             P = 0
 
+        successors = mc.G.successors(u)
+        if set(successors) - set(picked_set) == set():
+            rho_dash_dict[u] = 1
+            B_dash_dict[u] = 0
+            continue
+
         rho_dash_dict[u] = rho_dict[u] + P
         B_dash_dict[u] = B_dict[u] - (2 * P * (1 - rho_dict[u] - P))
 
         if rho_dash_dict[u] < 1:
-            F += x * B_dash_dict[u] / (1 - rho_dash_dict[u])
+            F_u = x * B_dash_dict[u] / (1 - rho_dash_dict[u])
+            if np.abs(F_u) < 1e-5:
+                F += 0
+            else:
+                F += F_u
         else:
             F += 0
 
     return (v, F, rho_dash_dict, B_dash_dict)
 
 def smart_greedy_parallel(k):
-    pool = Pool(24)
-    # print "Created pool of 24 processes"
+    pool = Pool(cores)
     picked_set = []
 
     rho_dict = {}
@@ -109,7 +154,7 @@ def smart_greedy_parallel(k):
 
     while len(picked_set) < k:
         candidate_nodes =  set(mc.G.nodes()) - set(picked_set)
-        args = [(candidate_node, rho_dict, B_dict) for candidate_node in candidate_nodes]
+        args = [(candidate_node, rho_dict, B_dict, picked_set) for candidate_node in candidate_nodes]
 
         objective_values = pool.imap(calculate_smart_F, args)
         objective_values = sorted(objective_values, key=lambda x: x[1])
@@ -126,8 +171,7 @@ def smart_greedy_parallel(k):
 
 # Brute force
 def brute_force_nodes(k):
-    pool = Pool(24)
-    # print "Created pool of 24 processes"
+    pool = Pool(cores)
     candidate_sets = combinations(mc.G.nodes(), k)
 
     objective_values = pool.imap(calculate_F, candidate_sets)
@@ -154,7 +198,7 @@ def highest_betweenness_centrality_nodes(k):
     return calculate_F(nodes_set)
 
 # Top k nodes with highest incoming probabibility
-def highest_in_probabibility_nodes(k):
+def highest_in_probability_nodes(k):
     incoming_probability = mc.G.in_degree(weight='weight')
     sorted_nodes = sorted(incoming_probability, key=incoming_probability.get)
     sorted_nodes = [x for x in reversed(sorted_nodes)]
@@ -191,22 +235,31 @@ def random_nodes(k):
     nodes_set = [x for x in random_nodes]
     return calculate_F(nodes_set)
 
-if __name__ == "__main__":
-    n = np.random.randint(10, 20)
-    k = np.random.randint(1, n)
-    num_items = np.random.randint(n, n*100)
-    distribution = np.random.choice(['direct','inverse','uniform'])
-    print "n={}, k={}, num_items={}, distribution={}".format(n,k,num_items, distribution)
-    mc = MarkovChain(n,num_items, distribution)
+# ------------------------------------------------------------
+# Evolution with k
+# ------------------------------------------------------------
 
-
-    # Test different baselines
-    print "Brute force: {}".format(brute_force_nodes(k))
-    print "Naive greedy: {}".format(naive_greedy_parallel(k))
-    print "Smart greedy: {}".format(smart_greedy_parallel(k))
-    # print "Betweenness centrality: {}".format(highest_betweenness_centrality_nodes(k))
-    # print "Incoming probability: {}".format(highest_in_probabibility_nodes(k))
-    # print "In-degree: {}".format(highest_in_degree_centrality_nodes(k))
-    # print "Closeness centrality: {}".format(highest_closeness_centrality_nodes(k))
-    # print "Items: {}".format(highest_item_nodes(k))
-    # print "Random: {}".format(random_nodes(k))
+# Get evolution of objective with increasing k
+def get_evolution(method, k):
+    dataframe = []
+    if method == smart_greedy_parallel or method == naive_greedy_heuristic:
+        nodes_set = method(k)[0]
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "nodes"
+            row['k'] = i
+            row['objective_value'] = calculate_F(nodes_set)[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    else:
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "nodes"
+            result = method(i)
+            row['k'] = i
+            row['objective_value'] = result[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    return dataframe

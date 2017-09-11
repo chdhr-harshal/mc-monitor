@@ -4,6 +4,8 @@ from __future__ import division
 import numpy as np
 import networkx as nx
 
+np.seterr(all="raise")
+
 class MarkovChain(object):
     """
     Markov Chain instance
@@ -15,17 +17,18 @@ class MarkovChain(object):
                                                 # 1. uniform
                                                 # 2. direct
                                                 # 3. inverse
-                                                # 4. custom
+                                                # 4. ego
+                ego_graph_radius=1,             # Radius of the ego graph
                 current_time=1,                 # Total time
                 G=None):                        # Networkx DiGraph such that:
                                                 # 1. Each node has an attribute 'num_items'
                                                 # 2. Each edge has an attribute 'weight'
 
-        # np.random.seed(100)
         self.num_nodes = num_nodes
         self.num_items = num_items
         self.current_time = current_time
         self.item_distribution = item_distribution
+        self.ego_graph_radius = ego_graph_radius
 
         if G is None:   # No networkx graph provided
             while True:
@@ -41,7 +44,14 @@ class MarkovChain(object):
         else:
             self.G = G
             self.initial_transition_matrix = nx.to_numpy_recarray(self.G, dtype=[('weight',float)]).weight
-            self.initial_item_distribution = nx.get_node_attributes(self.G, 'num_items')
+
+            # Test that resultant transition matrix is row stochastic
+            absdiff = np.abs(self.initial_transition_matrix.sum(axis=1)) - np.ones((self.num_nodes))
+            assert absdiff.max() <= 10*np.spacing(np.float64(1)), "Not row stochastic"
+
+            # self.initial_item_distribution = nx.get_node_attributes(self.G, 'num_items')
+            self.initial_item_distribution = self.initialize_item_distribution()
+            nx.set_node_attributes(self.G, 'num_items', self.initial_item_distribution)
 
 
     def initialize_transition_matrix(self):
@@ -66,9 +76,9 @@ class MarkovChain(object):
         transition_matrix[mask] = zero_matrix[mask]
 
         # # Randomly remove some edges in the matrix
-        # mask = np.random.randint(0, 2, size=transition_matrix.shape).astype(np.bool)
-        # zero_matrix = np.zeros((self.num_nodes, self.num_nodes))
-        # transition_matrix[mask] = zero_matrix[mask]
+        mask = np.random.randint(0, 2, size=transition_matrix.shape).astype(np.bool)
+        zero_matrix = np.zeros((self.num_nodes, self.num_nodes))
+        transition_matrix[mask] = zero_matrix[mask]
 
         # Divide each row by its sum to maintain row stochasticity
         transition_matrix = transition_matrix/transition_matrix.sum(axis=1)[:, None]
@@ -100,6 +110,14 @@ class MarkovChain(object):
             total = np.sum(out_degs.values())
             for i in self.G.nodes():
                 temp_dict[i] = self.num_items * out_degs[i]/total
+        elif self.item_distribution == 'ego':
+            random_node = np.random.choice(self.G.nodes())
+            ego_graph = nx.ego_graph(self.G, random_node, self.ego_graph_radius)
+            for i in self.G.nodes():
+                if i in ego_graph.nodes():
+                    temp_dict[i] = self.num_items / len(ego_graph.nodes())
+                else:
+                    temp_dict[i] = 0
         else:
             # Do nothing
             pass
