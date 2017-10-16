@@ -167,6 +167,30 @@ def smart_greedy_parallel(k):
 
     return calculate_F(picked_set)
 
+def check_optimality(picked_set):
+    print "Checking optimality"
+    edge_ab = picked_set[0]
+    remaining_set = set(picked_set) - set([edge_ab])
+    remaining_set = list(remaining_set)
+
+    candidate_edges = set(mc.G.edges()) - set(picked_set)
+
+    for edge_cd in candidate_edges:
+        F_ab = calculate_F(picked_set)[1]
+        F_cd = calculate_F(remaining_set + [edge_cd])[1]
+
+        if F_ab > F_cd:
+            print "Not optimal"
+            print "F_ab: {}".format(F_ab)
+            print "F_cd: {}".format(F_cd)
+
+            raw_input()
+        else:
+            pass
+            # print "Optimal"
+
+    print "Done for k = {}".format(len(picked_set))
+
 def smart_greedy_heuristic(k, edges_per_step):
     pool = Pool(cores)
     picked_set = []
@@ -304,8 +328,7 @@ def brute_force_edges(k):
 # Other baselines
 
 # Top k edges with highest betweenness centrality
-def highest_betweenness_centrality_edges(k):
-    betweenness_centrality = nx.edge_betweenness_centrality(mc.G, weight='weight')
+def highest_betweenness_centrality_edges(k, betweenness_centrality):
     sorted_edges = sorted(betweenness_centrality, key=betweenness_centrality.get)
     sorted_edges = [x for x in reversed(sorted_edges)][:k]
     edges_set = [(x[0],x[1]) for x in sorted_edges]
@@ -362,6 +385,16 @@ def get_evolution(method, k, edges_per_step=10):
             row['objective'] = "edges"
             row['k'] = i
             row['objective_value'] = calculate_F(edges_set[:i])[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    elif method == highest_betweenness_centrality_edges:
+        betweenness_centrality = nx.edge_betweenness_centrality(mc.G, weight='weight')
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "edges"
+            row['k'] = i
+            row['objective_value'] = method(i, betweenness_centrality)[1]
             row['method_name'] = method.func_name
             row['item_distribution'] = mc.item_distribution
             dataframe.append(row)

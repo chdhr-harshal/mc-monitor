@@ -15,7 +15,7 @@ import random
 import numpy as np
 import networkx as nx
 from multiprocessing import Pool
-from multiprocessing import cpu_count()
+from multiprocessing import cpu_count
 from itertools import combinations
 import argparse
 
@@ -185,13 +185,7 @@ def brute_force_nodes(k):
 # Other baselines
 
 # Top k nodes with highest betweenness centrality
-def highest_betweenness_centrality_nodes(k):
-    if mc.num_nodes > 1000:
-        pivots = 1000
-    else:
-        pivots = mc.num_nodes
-
-    betweenness_centrality = nx.betweenness_centrality(mc.G, k=pivots)
+def highest_betweenness_centrality_nodes(k, betweenness_centrality):
     sorted_nodes = sorted(betweenness_centrality, key=betweenness_centrality.get)
     sorted_nodes = [x for x in reversed(sorted_nodes)]
     nodes_set = sorted_nodes[:k]
@@ -206,16 +200,14 @@ def highest_in_probability_nodes(k):
     return calculate_F(nodes_set)
 
 # Top k nodes with incoming edges from highest number of other nodes
-def highest_in_degree_centrality_nodes(k):
-    in_deg_centrality = nx.in_degree_centrality(mc.G)
+def highest_in_degree_centrality_nodes(k, in_deg_centrality):
     sorted_nodes = sorted(in_deg_centrality, key=in_deg_centrality.get)
     sorted_nodes = [x for x in reversed(sorted_nodes)]
     nodes_set = sorted_nodes[:k]
     return calculate_F(nodes_set)
 
 # Top k nodes with highest closeness centrality
-def highest_closeness_centrality_nodes(k):
-    closeness_centrality = nx.closeness_centrality(mc.G)
+def highest_closeness_centrality_nodes(k, closeness_centrality):
     sorted_nodes = sorted(closeness_centrality, key=closeness_centrality.get)
     sorted_nodes = [x for x in reversed(sorted_nodes)]
     nodes_set = sorted_nodes[:k]
@@ -225,6 +217,13 @@ def highest_closeness_centrality_nodes(k):
 def highest_item_nodes(k):
     item_nodes = nx.get_node_attributes(mc.G, 'num_items')
     sorted_nodes = sorted(item_nodes, key=item_nodes.get)
+    sorted_nodes = [x for x in reversed(sorted_nodes)]
+    nodes_set = sorted_nodes[:k]
+    return calculate_F(nodes_set)
+
+# Top k pagerank nodes
+def highest_pagerank_nodes(k, pagerank):
+    sorted_nodes = sorted(pagerank, key=pagerank.get)
     sorted_nodes = [x for x in reversed(sorted_nodes)]
     nodes_set = sorted_nodes[:k]
     return calculate_F(nodes_set)
@@ -248,7 +247,51 @@ def get_evolution(method, k):
             row = {}
             row['objective'] = "nodes"
             row['k'] = i
-            row['objective_value'] = calculate_F(nodes_set)[1]
+            row['objective_value'] = calculate_F(nodes_set[:i])[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    elif method == highest_closeness_centrality_nodes:
+        closeness_centrality = nx.closeness_centrality(mc.G)
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "nodes"
+            row['k'] = i
+            row['objective_value'] = method(i, closeness_centrality)[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    elif method == highest_in_degree_centrality_nodes:
+        in_deg_centrality = nx.in_degree_centrality(mc.G)
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "nodes"
+            row['k'] = i
+            row['objective_value'] = method(i, in_deg_centrality)[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    elif method == highest_pagerank_nodes:
+        pagerank = nx.pagerank(mc.G, tol=1e-02)
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "nodes"
+            row['k'] = i
+            row['objective_value'] = method(i, pagerank)[1]
+            row['method_name'] = method.func_name
+            row['item_distribution'] = mc.item_distribution
+            dataframe.append(row)
+    elif method == highest_betweenness_centrality_nodes:
+        if mc.num_nodes > 1000:
+            pivots = 1000
+        else:
+            pivots = mc.num_nodes
+        betweenness_centrality = nx.betweenness_centrality(mc.G, k=pivots)
+        for i in xrange(k):
+            row = {}
+            row['objective'] = "nodes"
+            row['k'] = i
+            row['objective_value'] = method(i, betweenness_centrality)[1]
             row['method_name'] = method.func_name
             row['item_distribution'] = mc.item_distribution
             dataframe.append(row)

@@ -11,8 +11,8 @@ import networkx as nx
 from MarkovChain import *
 from MarkovChain.node_objectives import *
 
-DATA_DIR = "/home/grad3/harshal/Desktop/markov_traffic/data/"
-PLOTS_DATA_DIR = "/home/grad3/harshal/Desktop/markov_traffic/Plots_data/"
+DATA_DIR = "/home/grad3/harshal/Desktop/MCMonitor/data/"
+PLOTS_DATA_DIR = "/home/grad3/harshal/Desktop/MCMonitor/Plots_data/"
 
 dataframe_rows = []
 
@@ -60,6 +60,7 @@ def get_mc_attributes(start_time="2012-04-01 10:00:00", duration=120):
     df = df[(df['strt_statn'].isin(station_ids)) & (df['end_statn'].isin(station_ids))]
     trips_df = pd.DataFrame({'weight' : df.groupby(['strt_statn', 'end_statn']).size()})
     trips_df = trips_df.reset_index()
+    print "Number of trips:{}".format(len(df))
 
     print "Creating networkx graph"
     G = nx.from_pandas_dataframe(trips_df, 'strt_statn', 'end_statn', 'weight', create_using=nx.DiGraph())
@@ -70,7 +71,20 @@ def get_mc_attributes(start_time="2012-04-01 10:00:00", duration=120):
     for node in status_ids - set(G.nodes()):
         G.add_node(node)
 
-    return G
+    print "Creating item distribution"
+    initial_item_distribution = {}
+    for node in G.nodes():
+        try:
+            initial_item_distribution[node] = status_df[status_df['station_id'] == node].get('nbBikes').item()
+        except:
+            initial_item_distribution[node] = 0
+
+    return G, initial_item_distribution
+
+def get_station_coordinate_dataframe(nodes_set):
+    stations = read_stations_file("hubway_stations.csv")
+    df = stations[stations['id'].isin(nodes_set)]
+    return df
 
 def get_objective_evolution(method, k):
     rows = get_evolution(method, k)
@@ -81,16 +95,18 @@ def get_objective_evolution(method, k):
             header=True, index=False, compression="gzip")
 
 if __name__ == "__main__":
-    k = 10
-    G = get_mc_attributes(duration=600)
+    G, initial_item_distribution  = get_mc_attributes(duration=600)
     num_nodes = len(G)
-    num_items = len(G)
-    item_distribution = "direct"
+    print "Number of stations: {}".format(num_nodes)
+    num_items = np.sum(initial_item_distribution.values())
+    item_distribution = "custom"
+    k = num_nodes
 
     # Make mc global for imported modules
     __builtin__.mc = MarkovChain(num_nodes=num_nodes,
                                  num_items=num_items,
                                  item_distribution=item_distribution,
+                                 initial_item_distribution=initial_item_distribution,
                                  G=G)
 
     print "Starting evaluation of methods"
@@ -105,3 +121,9 @@ if __name__ == "__main__":
     for method in methods:
         print "Evaluating method {}".format(method.func_name)
         get_objective_evolution(method, k)
+
+    nodes_set = smart_greedy_parallel(5)[0]
+    nodes_df = get_station_coordinate_dataframe(nodes_set)
+
+    # Export ndoes_df
+    nodes_df.to_csv(PLOTS_DATA_DIR + "hubway_plot_nodes_5.csv.gz", sep=",", header=True, index=False, compression="gzip")

@@ -11,8 +11,8 @@ import networkx as nx
 from MarkovChain import *
 from MarkovChain.edge_objectives import *
 
-DATA_DIR = "/home/grad3/harshal/Desktop/markov_traffic/data/"
-PLOTS_DATA_DIR = "/home/grad3/harshal/Desktop/markov_traffic/Plots_data/"
+DATA_DIR = "/home/grad3/harshal/Desktop/MCMonitor/data/"
+PLOTS_DATA_DIR = "/home/grad3/harshal/Desktop/MCMonitor/Plots_data/"
 
 dataframe_rows = []
 
@@ -73,7 +73,50 @@ def get_mc_attributes(start_time="2012-04-01 10:00:00", duration=120):
     # Relabel nodes
     G = nx.convert_node_labels_to_integers(G)
 
-    return G
+    print "Creating initial item distribution"
+    initial_item_distribution = {}
+    for node in G.nodes():
+        try:
+            initial_item_distribution[node] = status_df[status_df['station_id'] == node].get('nbBikes').item()
+        except:
+            initial_item_distribution[node] = 0
+
+    return G, initial_item_distribution
+
+def get_paths_coordinate_dataframe(edges_set):
+    nodes = []
+    for edge in edges_set:
+        nodes.append(edge[0])
+        nodes.append(edge[1])
+    nodes = set(nodes)
+
+    stations = read_stations_file("hubway_stations.csv")
+    stations_df = stations[stations['id'].isin(nodes)]
+
+    df = []
+    for i in xrange(len(edges_set)):
+        edge = edges_set[i]
+        source = edge[0]
+        target = edge[1]
+
+        temp = {}
+        temp['edge_id'] = i
+        temp['node'] = source
+        temp['node_type'] = 'source'
+        temp['lng'] = stations_df[stations_df['id'] == source].get('lng').item()
+        temp['lat'] = stations_df[stations_df['id'] == source].get('lat').item()
+        df.append(temp)
+
+        temp = {}
+        temp['edge_id'] = i
+        temp['node'] = target
+        temp['node_type'] = 'target'
+        temp['lng'] = stations_df[stations_df['id'] == source].get('lng').item()
+        temp['lat'] = stations_df[stations_df['id'] == source].get('lat').item()
+        df.append(temp)
+
+    df = pd.DataFrame(df)
+    return df
 
 def get_objective_evolution(method, k, edges_per_step):
     rows = get_evolution(method, k, edges_per_step)
@@ -84,38 +127,27 @@ def get_objective_evolution(method, k, edges_per_step):
             header=True, index=False, compression="gzip")
 
 if __name__ == "__main__":
-    k = 20
-    G = get_mc_attributes(duration=600)
+    G, initial_item_distribution = get_mc_attributes(duration=600)
     num_nodes = len(G)
-    num_items = len(G)
-    item_distribution = "direct"
+    num_items = np.sum(initial_item_distribution.values())
+    item_distribution = "custom"
+    k = len(G.edges())
 
     # Make mc global for imported modules
     __builtin__.mc = MarkovChain(num_nodes=num_nodes,
                                  num_items=num_items,
                                  item_distribution=item_distribution,
+                                 initial_item_distribution=initial_item_distribution,
                                  G=G)
 
-    print G.nodes()
-
     print "Starting evaluation of methods"
-    # methods = [random_edges,
-    #            highest_item_edges,
-    #            highest_probability_edges,
-    #            highest_betweenness_centrality_edges,
-    #            smart_greedy_parallel,
-    #            smart_greedy_heuristic]
+    methods = [random_edges,
+               highest_item_edges,
+               highest_probability_edges,
+               highest_betweenness_centrality_edges,
+               smart_greedy_parallel,
+               smart_greedy_heuristic]
 
-    # methods = [smart_greedy_parallel,
-    #            smart_greedy_heuristic,
-    #            dp_algorithm]
-
-    # for method in methods:
-    #     print "Evaluating method {}".format(method.func_name)
-    #     get_objective_evolution(method, k, 5)
-
-    for i in xrange(10):
-        print "Dynamic program"
-        print dp_algorithm(i)
-        print "Smart greedy"
-        print smart_greedy_parallel(i)
+    for method in methods:
+        print "Evaluating method {}".format(method.func_name)
+        get_objective_evolution(method, k, 5)

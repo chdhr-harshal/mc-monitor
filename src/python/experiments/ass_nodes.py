@@ -15,8 +15,8 @@ from MarkovChain.node_objectives import *
 import networkx as nx
 import pandas as pd
 
-DATA_DIR = "/home/grad3/harshal/Desktop/markov_traffic/data/ass/"
-PLOTS_DATA_DIR = "/home/grad3/harshal/Desktop/markov_traffic/Plots_data/"
+DATA_DIR = "/home/grad3/harshal/Desktop/MCMonitor/data/ass/"
+PLOTS_DATA_DIR = "/home/grad3/harshal/Desktop/MCMonitor/Plots_data/"
 
 dataframe_rows = []
 
@@ -31,12 +31,14 @@ def get_mc_attributes(G):
     G = nx.stochastic_graph(G)
     return G
 
-def get_objective_evolution(method, k):
+def get_objective_evolution(method, k, iteration):
     rows = get_evolution(method, k)
+    for row in rows:
+        row['iteration'] = iteration
     global dataframe_rows
     dataframe_rows += rows
     df = pd.DataFrame(dataframe_rows)
-    df.to_csv(PLOTS_DATA_DIR + "ass1_k_objective_evolution.csv.gz", sep=",",
+    df.to_csv(PLOTS_DATA_DIR + "ass1_nodes_k_objective_evolution.csv.gz", sep=",",
             header=True, index=False, compression="gzip")
 
 if __name__ == "__main__":
@@ -46,23 +48,32 @@ if __name__ == "__main__":
 
     num_nodes = len(G)
     num_items = len(G)
-    item_distribution = "direct"
+    k = 50
+    item_distributions = ["uniform", "direct", "inverse", "ego"]
 
-    # Quick hack to make mc global to prevent copying to each process
-    __builtin__.mc = MarkovChain(num_nodes=num_nodes,
-                                num_items=num_items,
-                                item_distribution=item_distribution,
-                                G=G)
+    for item_distribution in item_distributions:
+        if item_distribution == 'ego':
+            iterations = 10
+        else:
+            iterations = 1
+        for iteration in xrange(iterations):
+            print "Evaluating item distribution {}".format(item_distribution)
 
-    print "Starting evaluation of methods"
-    methods = [random_nodes,
-              highest_item_nodes,
-              highest_closeness_centrality_nodes,
-              highest_in_degree_centrality_nodes,
-              highest_in_probability_nodes,
-              highest_betweenness_centrality_nodes,
-              smart_greedy_parallel]
+            # Quick hack to make mc global to prevent copying to each process
+            __builtin__.mc = MarkovChain(num_nodes=num_nodes,
+                                        num_items=num_items,
+                                        item_distribution=item_distribution,
+                                        G=G)
 
-    for method in methods:
-        print "Evaluating method {}".format(method.func_name)
-        get_objective_evolution(method, 10)
+            print "Starting evaluation of methods"
+            methods = [random_nodes,
+                      highest_item_nodes,
+                      highest_closeness_centrality_nodes,
+                      highest_in_degree_centrality_nodes,
+                      highest_in_probability_nodes,
+                      highest_betweenness_centrality_nodes,
+                      smart_greedy_parallel]
+
+            for method in methods:
+                print "Evaluating method {}".format(method.func_name)
+                get_objective_evolution(method, k, iteration)
