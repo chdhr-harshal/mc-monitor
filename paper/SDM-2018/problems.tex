@@ -1,0 +1,37 @@
+\section{Problem Definition}
+\label{section:problems}
+
+The general problem of \mcproblem\ is to select the
+appropriate monitoring operations to reduce
+the expected uncertainty after they are performed.
+Stated formally:
+
+\begin{problem}[\mcproblem]
+Given a transition matrix $P$ and an initial distribution of items $\initial$,
+select a set of up to $k$ monitoring operations 
+to minimize the expected uncertainty $\objective$. 
+% $E[\uncertainty]$
+\end{problem}
+
+We study variants of the problem --
+each defined for a specific type of monitoring operation.
+ For simplicity, we refer to these problems
+ with the same name as that of the operation type:
+\variant{\parentstransitions},
+\variant{\nodeitems},
+\variant{\childrentransitions}, 
+and \variant{\edgetransitions}.
+
+Furthermore, as we saw in Section~\ref{sec:setting},
+variants
+\variant{\parentstransitions}\ and
+\variant{\nodeitems} are equivalent: for the same set of nodes,
+operations of the first type
+reduce expected uncertainty as much as the second.
+Therefore, in what follows,
+we treat only the variant of \variant{\nodeitems}, as  our claims apply directly to
+\variant{\parentstransitions}\ as well.
+
+\todo[MM]{One issue we have not addressed is how we go from 
+$A_{_\shortnodeitems}(S)$ to $A_{_\shortparentstransitions}(S)$.
+Does it affect our claims?}

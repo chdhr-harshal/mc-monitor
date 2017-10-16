@@ -1,0 +1,32 @@
+\section{The \variant{\childrentransitions} problem}
+\label{sec:simplenodes}
+
+In this section, we provide the formal problem definition of the 
+{\variant{\childrentransitions}}
+and describe a greedy polynomial-time algorithm for solving it.
+
+\begin{problem}[{\variant{\nodeitems}}]
+\label{problem:simplenodes-variant}
+Given $G=(V,E)$, transition matrix $\transition$, 
+initial distribution of items to nodes
+$\initial$ and integer $k$, find
+$S\subseteq V$ such that $|S|=k$ such that 
+$\objective_{_\shortchildrentransitions}\left(S\right)$ is minimized.
+\label{problem:simple-nodes-variant}
+\end{problem}
+
+As we can see from the definition of 
+$\objective_\shortchildrentransitions\left(S\right)$ 
+in \eqref{eq:shortchildrentransitions},
+the contribution of each node $u\in {V-S}$
+to the objective function is equal to
+\begin{equation}
+\label{eq:parent-contribution}
+\objective_{_\shortchildrentransitions}(\{u\}) = 
+	\initial(u)\sum_{v\in V}\transition(u,v)\left(1-\transition(u,v)\right)
+\end{equation}
+and independent of any other node in $V-S$.
+It directly follows, then, that Problem~\ref{problem:simplenodes-variant}
+is solved by a simple greedy algorithm
+that places in $S$ the {\bf top k} nodes $u$ in terms
+of contribution $\objective_{_\shortchildrentransitions}(u)$.

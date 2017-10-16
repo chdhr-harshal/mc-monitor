@@ -1,0 +1,98 @@
+\section{Introduction}
+In this paper, we introduce and solve the 
+ \mcproblem\ problem. 
+As multiple items move on a graph in \markovchain-fashion, 
+our goal is to keep track of their distribution 
+across the graph.
+Towards that end, the {\mcproblem} 
+problem
+seeks to identify a limited number of nodes (or edges)
+so that, once we know exactly 
+how many items reside on (resp.\ traverse) them, our uncertainty 
+of the distribution of items on the graph
+is minimized.
+
+%
+%The situation is similar if, instead of nodes, 
+%we monitor {\it edges} of the graph, to know
+%the number of items that traverse them.
+%The {\mcproblem} seeks
+% to select  the set of nodes nodes or edges that one needs 
+%monitor, so as to have an accurate estimate about the number of items 
+%that reside on different nodes.
+
+
+% This task can be viewed as the sampling of a 
+% multi-item \markovchain, with the goal of preserving  as much 
+% information as possible about the state of the system.
+This problem finds applications in many network settings.
+% One broad category of such settings is 
+% including that of network traffic monitoring.
+In a typical such setting, one wishes to have accurate estimates of
+the number of items that reside at various
+nodes of a network (e.g., vehicles that are at the intersections of a road network)
+however faces constraints in how big a part of the network 
+(e.g., intersections or road segments) they can monitor at any time.
+For instance, in urban traffic networks 
+different parts of the network are active at different 
+times of the day or week. Therefore, actively measuring traffic 
+at all points of the network would waste resources.
+The task applies similarly on other types of networks including
+computer or peer-to-peer networks where the items that propagate through the network are packages
+or files.
+
+
+To the best of our knowledge, we are the first to introduce and study the {\mcproblem} problem.
+Nevertheless, this problem is similar
+to tasks such as outbreak detection, 
+sparsification of influence network, and the wider area
+of node and edge {\it centrality} on graphs.
+A major difference with previous work is that 
+in \mcproblem\ the ``centrality" of nodes or edges
+is defined not simply in terms of the
+underlying graph structure, but also in terms of
+the dynamic propagation of items through the network.
+
+
+We make two assumptions in our problem definition.
+The first is that there is a point in time when we have an accurate
+estimate of the placement of all items on the graph.
+The second is that we can monitor the subsequent placement
+of items by issuing a predefined number of {\it monitoring operations} 
+(i.e.,  real-time queries on the {\markovchain}).
+We consider different types of operations:
+ones that retrieve the number of items that reside on specific nodes;
+and ones that retrieve the number of items that traverse specific edges. 
+In the applications we consider, i.e., urban and computer traffic networks,
+the queries correspond to placing measurement devices on particular 
+nodes or edges of the network, and retrieving their measurements. 
+
+Technically, different monitoring operations result in different
+variants of  {\mcproblem}.
+% e.g., monitoring of the items that pass through an edge leads to a different problem definition than monitoring of the items of the nodes. 
+For each variant, we design efficient polynomial-time algorithms. 
+For some of these algorithms we demonstrate that they are indeed
+optimal, while for others we show that they perform extremely well in practice. 
+Our experiments use a diverse set of datasets from urban networks and computer
+networks to demonstrate the practical utility of our setting. 
+For example, our experiments with data from the Hubway bike-sharing 
+network of Boston, where the nodes are bike docks and the items that propagate
+through the network are the bikes themselves, identify as candidates for monitoring
+the stations that are close to the most busy Boston spots.
+
+% MM: Can we skip the outline of the paper?
+% The rest of the paper is structured as follows. We define the \mcproblem\
+% and its variants in Section~\ref{sec:setting}.
+% Subsequently, in sections~\ref{sec:nodes} to~\ref{sec:simplenodes},
+% we provide efficient algorithms to solve each.
+% % Up to that point,
+% % the paper discusses the problem under the assumption that 
+% % monitoring operations are performed at each step of the \markovchain.
+% % Section~\ref{sec:infinity} provides some additional notes
+% % for the case where monitoring operations are performed at larger
+% % intervals which, in the extreme case, allow the \markovchain\ to converge
+% % to steady state.
+% Finally, in Section~\ref{sec:experiments} we showcase the performance of 
+% algorithms and baselines on real data (traffic networks)
+% and conclude with discussion about future work.
+

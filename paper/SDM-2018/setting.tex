@@ -1,0 +1,296 @@
+\section{Setting}
+\label{sec:setting}
+% In this section, 
+In this section, we introduce our setting and notation.
+
+\spara{Markov Chain:}
+Consider a weighted directed graph 
+$G=(V,E,p)$ with $|V|=n$ and $|E|=m$.
+We use $\pi(v)\subseteq V$ and $\children(v)\subseteq V$ to 
+denote the set of parent and child nodes of node $v$, respectively.
+\begin{align*}
+\pi(v) & = \{u\mid u\in V, e(u\rightarrow v)\in E\} \\
+\kappa(v) & = \{u\mid u\in V, e(v\rightarrow u)\in E\}
+\end{align*}
+Edges $e(u\rightarrow v)\in E$ are associated with 
+real-valued weights $p(u\rightarrow v)\in [0,1]$
+such that $\forall u\in V$: 
+$
+  \sum_{v\in V} p(u\rightarrow v) = 1$.
+
+These weights give rise to a \markovchain\
+with transition matrix $\transition$ --
+where $\transition(u,v) = p(u,v)$ denotes
+the probability of a transition from node $u$ to node $v$. 
+% Since 
+% $\transition$ is the transition matrix of a \markovchain, it has the property
+% that $\sum_{v\in V}\transition(u,v)=1$.
+Moreover, we assume that a set of items
+are distributed among the nodes of $G$. 
+We use the row vector $\initial$ to denote the 
+the {\it initial} number of items per node; 
+that is, $\initial(u)$ is the number of items {initially}
+at node $u$.
+For the entirety of this paper, 
+transition matrix $\transition$ and distribution $\initial$ are 
+assumed known and part of the input.
+
+\note[MM]{For consistency, let's use 'position' instead of 'location' of items.}
+Consider now a single step of the \markovchain. During this step, each and
+every item transitions from the node $u$ where it resides originally
+to another node $v$, according to transition probabilities 
+$\transition(u,v)$.
+At the end of this step, items are 
+redistributed among the nodes - and we are no longer certain about their
+position. We use $\rvFinal$ to denote the random vector with the number
+of items at each node after one transition.
+The \emph{expected number of items} at each node is given by: 
+%\[
+$\final = E[\rvFinal] = \initial{\transition}$.
+%\]
+
+%% MM: Do we need this?
+% More generally, 
+% if the \markovchain\ takes $t$ steps, then the expected number of items
+% per node at the end of these steps is given by:
+% \[
+% \final = \initial{\transition}^t.
+% \]
+
+
+\spara{Quantifying uncertainty:} 
+We wish to have 
+% an accurate estimate of the distribution of items over nodes $V$ 
+% -- in other words, we wish to have 
+good point estimates for values $\final(v)$.
+We quantify the quality of estimates in terms of the variance
+in the number of items on each node afer the transition step.
+Specifically, let us consider the number $\rvFinal(v)$ of items
+on node $u$ after the transition step:
+an item previously at node $u$ will transition to
+node $v$ according to a Bernoulli distribution with 
+success probability $\transition(u,v)$;
+and since items transition from node to node independently from each other,
+the variance in the number of items $\rvFinal(v)$ is
+\begin{align}
+\variance(\rvFinal(v))  =\ & \variance(\rvFinal(v) | \transition, \initial) \nonumber \\
+ =\ & \sum_{u\in V}\initial(u)\transition(u,v)\left(1-\transition(u,v)\right).
+\end{align}
+To obtain an aggregate measure of uncertainty $\uncertainty_0$,
+we opt to sum the aforementioned quantity over all nodes.
+% with simple summation, as follows:
+\begin{align}
+\uncertainty_0 & = \sum_{v\in V}{\variance(\rvFinal(v))} \nonumber  \\
+ %& = \sum_{v\in V}\sum_{u\in V}\initial(u)\transition(u,v)\left(1-\transition(u,v)\right) \nonumber \\
+ & = \sum_{u\in V}\initial(u)\sum_{v\in V}\transition(u,v)\left(1-\transition(u,v)\right) 
+\label{eq:uncertainty}
+\end{align}
+% % MM: We have said this earlier.
+% Note that variance 
+% $\variance(\rvFinal(v)) = \variance(\rvFinal(v) | \transition, \initial)$ 
+% is defined conditionally on the 
+% information we are given as input -- in this case, the transition matrix 
+% \transition\ and the initial distribution of items $\initial$.
+% In the interest of simplicity, we omit the conditional part of the 
+% variance in notation when it is part of
+% the fixed input (such as \initial\ and \transition) 
+% -- and in what follows, we always assume that variance is
+% conditional on all available information.
+
+% % MM: Should we skip this part (uncertainty over time?)
+% \spara{Uncertainty over time} 
+% % $\uncertainty_0$ of 
+% Equation~\eqref{eq:uncertainty} expresses the 
+% uncertainty at one transition step. After $t$ steps, uncertainty is given by 
+% the same equation with $\transition^t$ in place of $\transition$.
+% \begin{equation}
+% \uncertainty_0^t = \sum_{u\in V}\initial(u)\sum_{v\in V}\transition^t(u,v)\left(1-\transition^t(u,v)\right)  
+% \end{equation}
+% If $\transition^t$ converges for $t\rightarrow\infty$, then $\uncertainty_0^t$
+% converges as well. As a special case, if the Markov chain is well-behaving
+% (specifically: if it is ergodic~\cite{gallager2012discrete}), then 
+% $\transition^t$ converges to $\transition^\infty$ with $|V|$ identical rows
+% \steadystate, that express a `steady-state' distrbution of items. In that
+% case, the probability that any item is located at node $u$ is equal to
+% \steadystate(u), regardless of what node it was placed at initially.
+% It follows that the expected number of items that are located at node $u$
+% at time $t\rightarrow\infty$ is equal to
+% \begin{equation}
+%   \final^{\infty}(u) = \steadystate(u) \sum_u \initial(u)
+% \end{equation}
+% and the total uncertainty at time $t\rightarrow\infty$ is equal to
+% \begin{equation}
+%   \uncertainty_0^\infty = \sum_u \steadystate(u)\left(1 - \steadystate(u)\right)
+% \end{equation}
+
+% In what follows, we
+% focus on the case of a transition
+% step of the \markovchain\ and are interested in
+% inferring the distribution of items over the nodes.
+% % and discuss the setting of multiple steps in Section~\ref{sec:infinity}.
+
+
+% \todo[MM]{Let's use this convention: $u$ for parent node, $v$ for child node.}
+
+\spara{Monitoring:} 
+Given the transition matrix $\transition$ and the 
+initial distribution of
+items $\initial$, we estimate the distribution of items 
+$\rvFinal$ after
+one transition step, with
+the uncertainty given in Equation~\eqref{eq:uncertainty}.
+After one transition step,
+we are allowed to 
+retrieve information about the position of the items
+and thus reduce uncertainty.
+We do this by performing ``monitoring operations", i.e. queries on the
+position of items on the \markovchain.
+These operations are  of the following types:
+%\begin{itemize}
+\squishlist
+	\item{\bf \parentstransitions} Retrieve the number of items that transitioned 
+  to node $v$ from each  $u\in\pi(v)$;
+  \item{\bf \nodeitems} Retrieve the number of items that reside on node 
+  $v$ after the transition step;
+	\item{\bf \edgetransitions} Retrieve the number of items that transitioned 
+  from node $u$ to node $v$;
+	\item{\bf \childrentransitions} Retrieve the number of items that 
+  transitioned from node $u$ to each child $v\in \children(u)$.
+%\end{itemize}
+\squishend
+
+From the above four types of monitoring operations, the last one (i.e., {\childrentransitions}) are both a bit 
+unintuitive and they lead to trivial combinatorial problems. Thus, we omit them from the rest of the discussion.
+%%%%%%
+
+\bpara{Expected uncertainty} 
+Once we retrieve the answer $\answer$ to a set of monitoring operations,
+we have more information about the positioning of items over nodes $V$ 
+-- and thus an updated (and non-increased) uncertainty 
+$\uncertainty(\answer) = \sum_{v\in V}{\variance(\rvFinal(v) | \answer)}$.
+In the setting we consider, however, the challenge we face is {\it not} to compute
+the uncertainty {\it given} the information retrieved via a monitoring 
+operation, but rather to {\it select the monitoring operations} 
+so that the uncertainty we will face {\it after} retrieving $\answer$ is
+minimized {\it in expectation}. Therefore, the quantity of interest
+is that of \expecteduncertainty\ for a set of operations
+that we choose to perform, expressed as 
+$E[\sum_{v\in V}{\variance(\rvFinal(v) | \answer)}]$. %,
+% with expectation taken
+% over the possible transitions according to \transition.
+
+Let us now assume we have chosen to perform a set of operations of 
+either one of the aforementioned types. In what follows, we provide 
+formulas for the \expecteduncertainty\
+in each case.
+
+
+\spara{Expected uncertainty under \parentstransitions :} 
+We 
+perform monitoring operations for
+a subset $S\subseteq V$ of nodes --
+and obtain an answer 
+$A_{_\shortparentstransitions}(S) = \{n_{uv}; v\in S,\ e(u\rightarrow v)\in E\}$,
+where $n_{uv}$ is the number of transitions to $v$ from its parent node $u$. 
+The expected value $\objective_{_\shortparentstransitions}(S)$ of the uncertainty 
+$\uncertainty(A_{_\shortparentstransitions}(S))$ 
+after these operations is given by
+\begin{align}
+\label{eq:nodevariance}
+\objective_{_\shortparentstransitions}(S) = & E[\uncertainty(A_{_\shortparentstransitions}(S))] \nonumber \\ 
+= & \sum_{u\in V}\initial^{\prime}(u)\sum_{v\in V\setminus S}\transition^{\prime}(u,v)\left(1-\transition^{\prime}(u,v)\right) 
+\end{align}
+where 
+% expectation is taken over the probability of
+% possible transitions and thus
+% possible answers $A_{_\shortparentstransitions}$ -- and 
+% the following notation is used.
+\begin{align}
+\rho(u,S) & = \sum_{v\in S}\transition(u,v) \nonumber \\
+ \initial^{\prime}(u) & = \initial(u)\left(1-\rho(u,S)\right) \label{eq:adjustedx}\\
+ \transition^{\prime}(u,v) & = \frac{\transition(u,v)}{1-\rho(u,S)}. \label{eq:adjustedP}
+\end{align}
+Intuitively, $\initial^{\prime}(u)$ expresses the expected number
+of items that transition from $u$ to nodes $v$ {\it other than} those in $S$;
+and $\transition^{\prime}(u,v)$ expresses the probability an item transitions
+from $u$ to $v$ {\it given} that it does {\it not} transition to those in $S$.
+We see, then, that Equation~\eqref{eq:nodevariance} has the same form as 
+Equation~\eqref{eq:uncertainty} but is evaluated on adjusted values of
+$\initial$ and $\transition$, to take into account the
+information we obtain via $A_{_\shortparentstransitions}$.
+
+Note that the expected uncertainty after
+the monitoring operations is no larger than $\uncertainty_0$\footnote{For a proof, see Supplementary Material, Lemma~\ref{lemma:decreased_uncertainty_pt}.}.
+
+
+\spara{Expected uncertainty under \nodeitems:} 
+We 
+perform monitoring operations for
+a subset $S\subseteq V$ of the nodes --
+and obtain an answer 
+$A_{_\shortnodeitems}(S) 
+= \{n_v; v\in S\}$, where $n_v$ is the number of items at node $v$
+after the transition.
+For an instance of answer $A_{_\shortnodeitems}(S)$,
+let also $A_{_\shortparentstransitions}(S) = \{n_{uv}; v\in S, 
+  e(u\rightarrow v)\in E\}$ 
+be an answer for \parentstransitions\ on the same set $S$ of nodes
+-- which by definition
+is {\it consistent with} $A_{_\shortnodeitems}(S)$, in the sense that
+\begin{equation}
+n_v = \sum_{u\in V} n_{uv}, \forall v\in S.
+\end{equation}
+It can be shown that the \expecteduncertainty\ is equal for the two cases.
+That is: 
+$\objective_{_\shortparentstransitions}(S) = \objective_{_\shortnodeitems}(S)$.
+\footnote{For a proof, see Supplementary Material, 
+Theorem~\ref{theorem:node-equivalence}.}.
+
+%-- i.e., whether we are given $A_{_\shortnodeitems}(S)$ 
+%or $A_{_\shortparentstransitions}(S)$ -- expressed by
+%Equation~\eqref{eq:nodevariance}
+
+\spara{Expected uncertainty under \edgetransitions:}
+We perform monitoring operations for
+a subset $D\subseteq E$ of the edges --
+and obtain an answer 
+$A_{_\shortedgetransitions} = A_{_\shortedgetransitions}(D) = \{n_e; e\in D\}$,
+where $n_e$ is the number of transitions over edge $e$. 
+The expected value $\objective_{_\shortedgetransitions}(D)$ of the uncertainty 
+$\uncertainty(A_{_\shortedgetransitions}(D))$ 
+after these operations is given by
+\begin{align}
+\objective_{_\shortedgetransitions}(D) = & E[\uncertainty(A_{_\shortedgetransitions})] \nonumber \\
+= & \sum_{u\in V}\initial^{\prime\prime}(u)\sum_{e(u\rightarrow v)\in E\setminus D}\transition^{\prime\prime}(u,v)\left(1-\transition^{\prime\prime}(u,v)\right) \label{eq:edgetransitions}
+\end{align}
+where 
+\begin{align}
+\rho(u,D) & =\ \sum_{e(u\rightarrow v)\in D}\transition(u,v) \nonumber\\
+ \initial^{\prime\prime}(u) & =\ \initial(u)\left(1-\rho(u,D)\right) \label{eq:etinit}\\
+ \transition^{\prime\prime}(u,v) & =\ \frac{\transition(u,v)}{1-\rho(u,D)} \label{eq:ettransit}
+\end{align}
+Similar to \parentstransitions\ and \nodeitems, expected uncertainty
+$\objective_{_\shortedgetransitions}(S)$ is no greater than
+$\uncertainty_0$.
+
+\iffalse
+\spara{Expected uncertainty under \childrentransitions:}
+Assume that we perform monitoring operations for
+a subset $S\subseteq V$ of the nodes --
+and obtain an answer
+$A_{_\shortchildrentransitions}(S) 
+= \{n_{uv}; u\in S, (u, v)\in E\}$, where $n_{uv}$ is the number of items that 
+transition over edge $(u,v)$.
+The expected value $\objective_{_\shortchildrentransitions}(S)$ of the uncertainty 
+$\uncertainty(A_{_\shortchildrentransitions}(S))$ 
+after these operations is given by
+\begin{align}
+\label{eq:shortchildrentransitions}
+\objective_{_\shortchildrentransitions}(S) & = E[\uncertainty(A_{_\shortchildrentransitions})] = \nonumber \\
+& = \sum_{u\in V-S}\initial(u)\sum_{v\in V}\transition(u,v)\left(1-\transition(u,v)\right).
+\end{align}
+Notice that this quantity is no greater than
+$\uncertainty_0$ (Equation~\eqref{eq:uncertainty}), as the outer summation
+is performed for a subset of nodes.
+\fi
+

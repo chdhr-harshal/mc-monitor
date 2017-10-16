@@ -1,0 +1,105 @@
+%monitoring
+\newcommand{\parentstransitions}{{\sc ParentTransitions}}
+\newcommand{\edgetransitions}{{\sc EdgeTransitions}}
+\newcommand{\childrentransitions}{{\sc ChildrenTransitions}}
+\newcommand{\nodeitems}{{\sc NodeItems}}
+
+\newcommand{\shortparentstransitions}{{\sc PT}}
+\newcommand{\shortedgetransitions}{{\sc ET}}
+\newcommand{\shortchildrentransitions}{{\sc CT}}
+\newcommand{\shortnodeitems}{{\sc NI}}
+
+\newcommand{\query}{\ensuremath{\tt Q}}
+\newcommand{\answer}{\ensuremath{\tt A}}
+
+
+%problems
+
+\newcommand{\mcproblem}{{\textsc{Markov Chain Monitoring}}}
+\newcommand{\nodeproblem}{{\textsc{Node-Monitoring}}}
+\newcommand{\edgeproblem}{{\textsc{Edge-Monitoring}}}
+\newcommand{\variant}[1]{{#1}}
+
+%algorithms
+\newcommand{\nodegreedy}{{\texttt{NodeGreedy}}}
+\newcommand{\edgegreedy}{{\texttt{EdgeGreedy}}}
+\newcommand{\edgeDP}{{\texttt{EdgeDP}}}
+\newcommand{\dynp}{{\textt{DP}}}
+
+%datasets
+\newcommand{\hubway}{{\texttt{Hubway}}}
+\newcommand{\autonomoussystems}{{\texttt{AS}}}
+\newcommand{\ba}{{\texttt{BA}}}
+\newcommand{\grid}{{\texttt{Grid}}}
+\newcommand{\geo}{{\texttt{Geo}}}
+
+%item distributions
+\newcommand{\uniform}{{\tt Uniform}}
+\newcommand{\direct}{{\tt Direct}}
+\newcommand{\inverse}{{\tt Inverse}}
+\newcommand{\ego}{{\tt Ego}}
+
+% heuristics
+\newcommand{\nodeheuristics}{{\sc Node Baselines}}
+\newcommand{\edgeheuristics}{{\sc Edge Baselines}}
+
+\newcommand{\indegree}{{\tt In-Degree}}
+\newcommand{\nodenumitems}{{\tt Node-NumItems}}
+\newcommand{\edgenumitems}{{\tt Edge-NumItems}}
+\newcommand{\inprobability}{{\tt In-Probability}}
+\newcommand{\nodebetweenness}{{\tt Node-Betweenness}}
+\newcommand{\edgebetweenness}{{\tt Edge-Betweenness}}
+\newcommand{\closeness}{{\tt Closeness}}
+\newcommand{\probability}{{\tt Probability}}
+\newcommand{\pagerank}{{\tt PageRank}}
+
+%other terms
+\newcommand{\markovchain}{{\textit{Markov chain}}}
+\newcommand{\expecteduncertainty}{{\textit{expected uncertainty}}}
+\newcommand{\nphard}{$\mathbf{NP}$-hard}
+
+
+%symbols
+\newcommand{\parents}{\ensuremath{\pi}}
+\newcommand{\children}{\ensuremath{\kappa}}
+\newcommand{\transition}{\ensuremath{\mathbf{P}}}
+\newcommand{\steadystate}{\ensuremath{\mathbf{p}}}
+\newcommand{\initial}{\ensuremath{\mathbf{x}}}
+\newcommand{\final}{\ensuremath{\mathbf{z}}}
+\newcommand{\uncertainty}{\ensuremath{F}}
+\newcommand{\objective}{\ensuremath{\mathbf{F}}}
+\newcommand{\variance}{\ensuremath{\mathbf{var}}}
+\newcommand{\rvFinal}{\ensuremath{\mathbf{Z}}}
+\newcommand{\actualtransitions}{\ensuremath{\mathbf{T}}}
+\newcommand{\prob}{\ensuremath{\mathbf{Pr}}}
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+% \newcommand{\KwIn}[1]{\bf{Input:} #1}
+% \newcommand{\KwOut}[1]{\bf{Output:} #1}
+
+\newcommand{\etal}{\emph{et al.}}
+
+% theorems
+\newtheorem{problem}{Problem}
+% \newtheorem{lemma}{Lemma}
+%\newtheorem{theorem}{Theorem}
+
+
+%formating
+\newcommand{\spara}[1]{\smallskip\noindent{\bf{#1}}}
+\newcommand{\mpara}[1]{\medskip\noindent{\bf{#1}}}
+\newcommand{\bpara}[1]{\bigskip\noindent{\bf{#1}}}
+
+\newcommand{\squishlist}{\begin{list}{$\bullet$}
+  { \setlength{\itemsep}{0pt}
+     \setlength{\parsep}{3pt}
+     \setlength{\topsep}{3pt}
+     \setlength{\partopsep}{0pt}
+     \setlength{\leftmargin}{1.5em}
+     \setlength{\labelwidth}{1em}
+     \setlength{\labelsep}{0.5em} } }
+\newcommand{\squishend}{
+\end{list}  }
+

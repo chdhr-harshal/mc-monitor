@@ -1,0 +1,145 @@
+\section{Related work}
+
+To the best of our knowledge, we are the first to introduce and study the
+ \mcproblem\ problem. However, this problem can also be seen as 
+ a graph centrality problem, where one seeks to 
+identify $k$ ``central" nodes or edges to
+intercept the movement of items on a graph. Therefore, our work is related
+to existing work on graph centrality measures.
+
+Graph centrality measures can be broadly cast into two categories: \emph{individual}
+and \emph{group centrality} measures. Individual measures assign 
+a score to the each node/edge. %and the best $k$ nodes/edges are the $k$ with the
+%highest score. 
+Group centrality measures assign scores to sets of nodes or edges. 
+%In this categorization, our task of picking $k$ nodes or edges to monitor
+%is a group centrality measure. 
+Usually, computing group-centrality measures requires solving a
+complex combinatorial problems. %and algorithms for computing
+%the group with the highest centrality are much more involved.
+
+Examples of individual centrality scores for nodes and edges are the 
+\emph{Pagerank}~\cite{pagerank1999}, 
+betweenness~\cite{brandes01faster,erdos15divide,riondato16fast} 
+and current flow centralities~\cite{brandes05centrality}. 
+Pagerank is one classical 
+example of a centrality measure based on a \markovchain\
+-- where the centrality of nodes is
+quantified as the stationary distribution
+of a \markovchain\ on the graph. 
+Betweenness centrality and current flow centrality
+assign high centrality score to nodes/edges that participate in one or many short
+paths between all pairs of nodes in the input network. 
+Although a {\markovchain} is used for Pagerank, its computation is very different 
+than ours -- after all, Pagerank is an individual centrality measure, while our measures are group centralities.
+% Similarly, betweenness and current flow centrality capture different intuitions and 
+% raise different computational challenges from the ones we solve in this paper.
+
+
+Group centrality measures that use a {\markovchain} model 
+include the {\it Absorbing Random Walk Centrality} 
+introduced by Mavroforakis {\etal}~\cite{Mavroforakis:2015}. 
+In that work, the centrality of a set of nodes is defined
+as the transient time of the \markovchain\ when 
+the given nodes are ``absorbing". 
+% Their task is then to find the 
+% group of $k$ nodes with the highest global absorbing random walk centrality.
+An absorbing {\markovchain} is also assumed by the work of Gionis {\etal}~\cite{gionis13maximizing}. 
+In that setting, the authors aim to maximize the positive
+opinion of the network with respect to a specific topic by picking $k$ nodes appropriately to endorse this positiveness via posts (e.g., in a social network).
+Both these problems are different from ours because we do not consider 
+absorbing random walks, but rather a simple {\markovchain}. 
+Moreover, our objective to minimize uncertainty is different from the 
+objectives of the above papers. 
+% As a result the algorithmic challenges we 
+% are addressing here are orthogonal to those addressed by their work. 
+
+
+While \markovchain\ is a simple model that allows us to quantify 
+centrality, different models are more appropriate
+in other settings.
+For example, Ishakian {\etal}~\cite{ishakian12framework} proposed an extension
+of betweenness centrality to the group betweenness centrality. In that case, the goal
+was to find a group of nodes such that many shortest paths pass through those nodes.
+As another example, in epidimiology and information propagation
+settings, the underlying process of interest (e.g., the spreading of a virus
+or piece of information) is better modeled
+as a random cascade.
+In such a setting, the measure of 
+{\it influence}~\cite{borgs2014maximizing, galhotra2015asim, goyal2011simpath,
+Kempe:2003, ohsaka2014fast, Tang:2014} captures another notion of centrality, where
+the centrality of a node is defined in
+terms of the expected spread of a random cascade that starts at the
+given node. In the same setting, two related tasks are those of outbreak 
+detection~\cite{leskovec2007cost} and graph 
+sparsification~\cite{Mathioudakis:2011}. In the former,
+the task is to identify as central those nodes that would intercept 
+early a set of observed cascades. In the latter, one seeks edges
+that are central in explaining (from a model-sparsity point of view)
+the observed cascades as well as possible.
+
+In terms of categorization, the  the {\mcproblem} problem
+is a group-centrality measure.
+What distinguishes the setting of \mcproblem\
+from all the above work is that 
+centrality is defined in terms of a combination
+of static structure (graph), 
+dynamic structure (\markovchain), and real-time activity 
+(current placement of items on the graph),  which is not the case in
+the aforementioned works.
+
+\iffalse
+The literature on graph centrality is too vast for 
+the scope of this paper to go over, but we mention
+a few instances of centrality measures
+of \markovchain- or random-cascade-based measures,
+to illuminate the 
+distinguishing features of this work.
+
+
+{\it Pagerank}~\cite{pagerank1999} is one classical 
+example of a centrality measure based on a \markovchain\
+model -- where the pagerank centrality of the nodes of a graph is
+quantified as the stationary (`steady-state') distribution
+of a \markovchain\ on the graph.
+Of course, the stationary distribution is not the only measure
+to capture some intuitive notion of centrality 
+on top of a \markovchain --
+other measures can be used as well.
+For example,
+{\it Absorbing Random Walk Centrality}~\cite{Mavroforakis:2015}
+defines node centrality in terms of a 
+transient \markovchain, where 
+but the centrality of a node is defined
+as the transient time of the \markovchain\ when its
+the given node is `absorbing'.
+
+While \markovchain\ is a simple model that allows us to quantify 
+centrality, different models are more appropriate
+in other settings.
+For example, in epidimiology and information propagation
+settings, the underlying process of interest (e.g., the spreading of a virus
+or piece of information, respectively) is better modeled
+as a random cascade.
+In such a setting, the measure of {\it influence}~\cite{Kempe:2003, 
+goyal2011simpath, Tang:2014, ohsaka2014fast, borgs2014maximizing, 
+galhotra2015asim} captures another notion of centrality, where
+the centrality of a node is defined in
+terms of the expected spread of a random cascade that starts at the
+given node. In the same setting, two related tasks are those of outbreak 
+detection~\cite{leskovec2007cost} and graph 
+sparsification~\cite{Mathioudakis:2011}. In the former,
+the task is to identify as central those nodes that would intercept 
+early a set of observed cascades. In the latter, one seeks edges
+that are central in explaining (from a model-sparsity point of view)
+the observed cascades as well as possible.
+
+What distinguishes the setting of \mcproblem\
+from previous work is that 
+centrality is defined in terms of a combination
+of static structure (graph), 
+dynamic structure (\markovchain), and real-time activity 
+(current placement of items on the graph) -- which is not the case in
+the aforementioned works.
+
+\fi

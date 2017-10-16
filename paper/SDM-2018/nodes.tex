@@ -1,0 +1,138 @@
+\section{The {\variant{\nodeitems}} problem}
+\label{sec:nodes}
+
+In this section, we provide the formal problem definition 
+of the {\variant{\nodeitems}} problem variant and describe a greedy 
+polynomial-time algorithm for solving it.
+\begin{problem}[{\variant{\nodeitems}}]
+Given $G=(V,E)$, transition matrix $\transition$, initial distribution of items to nodes
+$\initial$ and integer $k$, find
+$S\subseteq V$ such that $|S|=k$ such that 
+$\objective_\shortnodeitems\left(S\right)$ is minimized.
+\label{problem:nodes-variant}
+\end{problem}
+A brute-force way to solve Problem~\ref{problem:nodes-variant}
+would be to evaluate the objective function over all node-sets of size $k$.
+Obviously such an algorithm is infeasible -- and we thus
+study a natural greedy algorithm for the problem, namely \nodegreedy.
+
+\spara{The {\nodegreedy} algorithm:} 
+This is a greedy algorithm that performs $k$ iterations; at each iteration,
+it adds one more 
+node in the solution.
+If $S^t$ is the solution at iteration $t$, 
+then solution $S^{t+1}$ is constructed by finding the 
+node $u\in V\setminus S^t$ such that:
+\begin{equation}\label{eq:nodegreedy}
+v^\ast=\argmin_{v\in V\setminus S^t}\objective_\shortnodeitems\left(S^{t}\cup\{v\}\right).
+\end{equation}
+Although in the majority of our experiments that compare the brute-force solutions with those
+of {\nodegreedy} the two solutions were identical, we identified some contrived instances 
+for which this was not the case. Thus, {\nodegreedy} is not an optimal algorithm for
+Problem~\ref{problem:nodes-variant}.
+
+
+\spara{Running time} 
+{\nodegreedy} evaluates Equation~\eqref{eq:nodegreedy} at each iteration. 
+A naive implementation of this would require computing Equation~\eqref{eq:nodevariance}
+$O(|V|)$ times per iteration, each time using $O(|V|^2)$ numerical operations.
+As a first improvement, we avoid the full double summation over $V$
+via a summation over edges $E$,
+\begin{align}
+	\objective_{_\shortparentstransitions}(S) = & \sum_{u\in V}\initial^{\prime}(u)\sum_{v\in V\setminus S}\transition^{\prime}(u,v)\left(1-\transition^{\prime}(u,v)\right) \nonumber \\ 
+	= &  \sum_{(u,v)\in E, v\in V\setminus S} 
+	\initial^{\prime}(u)\transition^{\prime}(u,v)\left(1-\transition^{\prime}(u,v)\right),
+\end{align}
+that involves $O(k|V||E|)$ numerical operations.
+
+% Clearly, the above running time would make {\nodegreedy}
+% infeasible to run even for small-size datasets. 
+We can further speed-up the algorithm if 
+we re-use at each step the computations 
+done in the previous one.
+To see how, let $S_t$ (resp.\ $S_{t+1}$) 
+be the solution we construct after
+$t$ (resp.\ $(t+1)$) iterations and 
+let $v^\ast$ be the node such that
+$S_{t+1}=S_t\cup v^\ast$. 
+Then, for any $u\in V$ we have $
+\rho(u,S_t) = \sum_{v\in S_t}\transition(u,v)
+$, and therefore
+\begin{eqnarray}\label{eq:rho}
+% \rho(u,S_{t+1}) & = &\sum_{v\in S_{t+1}}\transition(u,v)\\ 
+% & = & \sum_{v\in S_{t}}\transition(u,v) + \transition(u,v^\ast)\nonumber\\
+% & = & \rho(u,S_{t})+ \transition(u,v^\ast)\nonumber
+\rho(u,S_{t+1}) & = \rho(u,S_{t})+ \transition(u,v^\ast).
+\end{eqnarray}
+Moreover, for any $S\subseteq V$ let
+\begin{align}
+B(u,S) & = \sum_{(u,v)\in E\ s.t.\ v\in V\setminus S}\transition^{\prime}(u,v)\left(1-\transition^{\prime}(u,v)\right) \\
+& = \sum_{v\in V\setminus S}\frac{\transition(u,v)}{1-\rho(u,S)}\left(1-\frac{\transition(u,v)}{1-\rho(u,S)}\right)\nonumber .	
+\end{align}
+We can then express $B(u,S_{t+1})$ in terms of
+$B(u, S_{t})$:
+\begin{eqnarray}\label{eq:B}
+\lefteqn{
+B(u,S_{t+1})  =} \nonumber \\
+& & B(u,S_t)-2\transition(u,v^\ast)\left(1-\rho(u,S_t)-\transition(u,v^\ast)\right). 
+\end{eqnarray}
+Finally, using Equations~\eqref{eq:rho} and~\eqref{eq:B} 
+and algebraic manipulations,
+we can express $\objective_{\shortnodeitems}(S_{t+1})$ as follows:
+\begin{eqnarray}\label{eq:noderewrite}
+\lefteqn{
+\objective_{\shortnodeitems}(S_{t+1}) = }\\
+&&\sum_{u\in V}\initial(u)\left(\frac{B(u,S_t)}{1-\rho(u,S_{t+1})}-2\transition(u,v^\ast)\right)\nonumber
+\end{eqnarray}
+Thus, if we store $B(u,S_t)$ and $\rho(u,S_t)$ at iteration $t$, 
+then evaluating 
+Equation~\eqref{eq:noderewrite} at iteration $t+1$
+takes only $O(|V|)$ numerical operations.
+
+For all iterations but the first one,
+the above sequence of rewrites enables us to achieve 
+a speedup from $O(|V||E|)$ to $O(|V|^2)$ numerical operations
+per iteration.
+For the first iteration, initializing
+the auxiliary quantities $B(u, \emptyset)$, $u\in V$, still takes
+$O(|E|)$.
+With this book-keeping, the running time of {\nodegreedy} is  reduced
+from $O(k|V||E|)$ to $O(|E| + k|V|^2) = O(k|V|^2|)$.
+Note also that \nodegreedy\ is amenable to parallelization,
+as, given the auxiliary quantities from the previous step, 
+we can compute the objective function independently for each 
+candidate node.
+
+
+
+% \emph{Optimality proof:} Our proof for the optimality of {\nodegreedy}, will 
+% first demonstrate that if node $v_1$ is the node picked by {\nodegreedy} 
+% in its first iteration, then $v_1$ is included in the optimal solution.
+% Then, 
+% we will show that the solution to our original problem 
+% consists of $v_1$ plus the optimal solution to a modified problem that does 
+% not contain $v_1$.
+
+% For the first part of the proof, let's assume that $S^\ast$ is the optimal solution
+% of size $k$. Also, let $S$ be the solution of size $k$ constructed by {\nodegreedy} and 
+% let $v_1$ be the node picked by {\nodegreedy} in its first iteration. Before setting
+% its solution in iteration $1$ {\nodegreedy} sets its solution to $S_0=\{\}$ and thus
+% $B(u,S_0)$ is equal to some constant $C$, i.e., $B(u,S_0)=C$ for every $u\in V$.
+% Therefore, from Equations~\eqref{eq:rho},~\eqref{eq:B} 
+% and~\eqref{eq:noderewrite} we know that 
+% \[
+% v_1=\argmin_{v\in V}\sum_{u\in V}\initial(u)\left(\frac{C}{1-\transition(u,v)}-2\transition(u,v)\right).
+% \]
+% Now let's assume that $v_1\notin S^\ast$ and let $T^\ast\subset S^\ast$ such that
+% $\left |T^\ast\right|=k-1$ and $S^\ast\setminus T^\ast = v'$.
+
+% From the first step of of the {\nodegreedy} algorithm we know that 
+% \begin{eqnarray*}
+% \sum_{u\in V}\initial(u)\left(\frac{C}{1-\transition(u,v_1)}-2\transition(u,v_1)\right)& \leq & \\\sum_{u\in V}\initial(u)\left(\frac{C}{1-\transition(u,v')}-2\transition(u,v')\right), & &
+% \end{eqnarray*}
+% which means that
+% \begin{eqnarray*}
+% \sum_{u\in V}\initial(u)\left(\frac{C}{1-\transition(u,v_1)}-2\transition(u,v_1)\right)& \leq & \\\sum_{u\in V}\initial(u)\left(\frac{C}{1-\transition(u,v')}-2\transition(u,v')\right), & &
+% \end{eqnarray*}
+
+

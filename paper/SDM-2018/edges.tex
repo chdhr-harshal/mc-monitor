@@ -1,0 +1,170 @@
+\section{The \variant{\edgetransitions} problem}
+\label{sec:edges}
+
+Whereas \variant{\nodeitems} (Problem~\ref{problem:nodes-variant}) seeks $k$ 
+nodes to optimize expected uncertainty, \variant{\edgetransitions} seeks
+$k$ edges.
+\begin{problem}[{\edgeproblem}]
+Given $G=(V,E)$, transition matrix $\transition$, 
+initial distribution of items to nodes
+$\initial$ and integer $k$, find
+$S\subseteq V$ such that $|S|=k$ such that 
+$\objective_\shortedgetransitions\left(S\right)$
+(Equation~\eqref{eq:edgetransitions}) is minimized.
+\label{problem:edges-variant}
+\end{problem}
+We provide two polynomial-time algorithms to solve
+the problem, namely \edgeDP\ and \edgegreedy.
+For the former, we can also prove that it is optimal, and thus Problem~\ref{problem:edges-variant}
+is solvable in polynomial time.
+
+\spara{The {\edgeDP} algorithm:}
+{\edgeDP} is a dynamic-programming algorithm that 
+selects edges in two steps: first, it sorts the {\it outgoing} 
+edges of
+each node in decreasing order of transition probability, thus
+creating $|V| = n$ corresponding lists; secondly, it combines top edges from
+each list to select a total of $k$ edges.
+%The algorithm is polynomial and optimal.
+
+In more detail, let $SOL_i(k)$ be the cost
+of an optimal solution for the special case of
+a budget of $k$ edges allocated among outgoing edges of nodes
+$V_{i:} = \{i, i+1, \ldots, n\}$.
+According to this notational convention,
+the cost of an optimal solution $D_{opt}$ for the problem is given by 
+$SOL_1(k)$.
+%  -- 
+% and we define $SOL_i(k) = \infty$ for $k < 0$ and $SOL_i(k) = 0$ 
+% for $i > \|V\| = n$.
+Moreover, considering Equation~\eqref{eq:edgetransitions},
+let $\objective_i$ be the function that corresponds to
+the (outer) summation term for node $i$
+\begin{equation}
+	\objective_i(D) = \initial^{\prime\prime}(i)\sum_{v\in V\setminus S}\transition^{\prime\prime}(i,v)\left(1-\transition^{\prime\prime}(i,v)\right)
+\end{equation}
+(under the auxilliary definitions of Equations \eqref{eq:etinit}
+and \eqref{eq:ettransit})
+and $ISOL_i(m)$ its optimal value when $D$ contains no more than
+$m\leq k$ outgoing edges from node $i$.
+Let also $D_i^m$ be a subset of $k$ outgoing edges of $i$
+with the highest transition
+probabilities.
+It can be shown that the optimal value
+for $\objective_i(D)$ is achieved for 
+the edges $D_i^k$ with {\it highest} transition 
+probability\footnote{For a proof,
+see Supplementary Material, Lemma~\ref{lemma:singlenodeoptimality}.}.
+Having the outgoing edges of $i$ sorted by transition probability,
+we can compute $ISOL_i(m)$ for all $m = 0\ldots k$.
+
+The dynamic programming equation is: 
+\begin{equation}
+	SOL_i(k) = \argmin_{0\leq m\leq k}\{ISOL_i(m) + SOL_{i+1}(k - m)\}
+	\label{eq:dptop}
+\end{equation}
+\edgeDP\ essentially computes and keeps in memory 
+$\|V\| \times (k+1)$ values according to Eq.\eqref{eq:dptop}.
+
+Given the above, we have the following result:
+
+\begin{lemma}
+The {\edgeDP} algorithm is optimal for the {\edgeproblem} problem.
+\end{lemma}
+
+% \begin{algorithm}
+% \LinesNumbered
+%  \KwIn{k}
+%  \KwOut{SOL: Dynamic programming array}
+%  initialize empty array $SOL_{\|V\| \times (k+1)}$;\\
+%  \For{i = $\|V\|$..1}{
+%   \For{$k'$ = 0:k}{
+%     SOL[$i$, $k'$] := $\argmin_{0\leq k_i\leq k'}\{ISOL_i(k_i) + SOL[i+1, k' - k_i]\}\}$
+%    }
+%  }
+%  \Return SOL;
+%  \caption{Dynamic programming algorithm for the \edgetransitions\ variant.}
+%  \label{alg:edgeDP}
+% \end{algorithm}
+
+For a proof sketch of this lemma see Supplementary Material, 
+Theorem~\ref{theorem:edgeDP}.
+
+
+\emph{Running time:} \edgeDP\ 
+computes $k\times |V|$ values. For each value to be
+computed, up to $O(k)$ numerical operations are performed. Therefore,
+\edgeDP\ runs in $O(k^2|V|)$ operations. Backtracking to retrieve the
+optimal solution requires at most equal number of steps, so it does not
+increase the asymptotic running time.
+
+
+
+
+
+\spara{The {\edgegreedy} algorithm:}
+\edgegreedy\ is a natural greedy algorithm that selects
+$k$ edges in an equal number of steps, in each step selecting
+one more edge to minimize $\objective_{\shortedgetransitions}$.
+% \edgegreedy\ is described in Algorithm~\ref{alg:edgegreedy}.
+
+
+% \begin{algorithm}
+% \LinesNumbered
+%  \KwIn{k}
+%  \KwOut{$ResultEdges$: Set of selected edges}
+%  $ResultEdges$ = $\{\}$ \\
+%  \For{$i = 1 \cdots k$}{
+%  	Select $e\in E$ := 
+%  		$\argmin \objective_{\shortedgetransitions}(ResultEdges \cup \{e\})$ \\
+%  	$ResultEdges$ := $ResultEdges$ $\cup$ \{e\}; \\
+%  	E := E $\setminus$ \{e\}; \\
+%  }
+%  \Return $ResultEdges$;
+%  \caption{Greedy algorithm for the \edgetransitions\ variant.}
+%  \label{alg:edgegreedy}
+% \end{algorithm}
+
+
+%Unfortunately, we have not been able to prove or dispove optimality
+%for \edgegreedy. 
+
+In all our experiments the performance of {\edgegreedy} is the same as the performance of
+the optimal {\edgeDP} algorithm. However, we do not have a proof that the former is also optimal. We leave this as a problem for future work.
+
+\emph{Running time:} Following Equation \eqref{eq:edgetransitions},
+to select $k$ edges,
+\edgegreedy\ %as defined in Algorithm~\ref{alg:edgegreedy}
+invokes up to $k\times O(|E|)$ evaluations of
+$\objective_{\shortedgetransitions}$.
+% ; and each evaluation of
+% $\objective_{\shortedgetransitions}$ involves $O(|E|)$ numerical operations.
+As we discussed for \nodegreedy, if the evaluation of the 
+objective function is naively implemented with a double summation,
+the running time of \edgegreedy\ is 
+$O(k|E||V|^2)$ numerical operations.
+If the objective function is implemented as a summation over edges,
+the running time improves to $O(k|E|^2)$.
+Furthermore, following the observations similar to those we saw for {\nodegreedy}, the
+running time of \edgegreedy\ becomes $O(|E| + k|E|) = O(k|E|)$.
+
+We notice that \edgeDP\ has better
+performance than \edgegreedy\ for dense graphs ($|E|\approxeq |V|^2$) 
+and small $k$. Moreover, as with \nodegreedy, \edgegreedy\ is 
+amenable to parallelization - the new value of the objective function
+can be computed in independently for each edge that's considered for
+selection.
+
+
+
+% We have the following theorem for \edgegreedy.
+% \begin{theorem}
+% \edgegreedy\ is optimal for the \edgetransitions\ variant of 
+% the \mcproblem\ problem.
+% \label{theorem:edgegreedy}
+% \end{theorem}
+% The proof for Theorem~\ref{theorem:edgegreedy} mirrors the proof for 
+% Theorem~\ref{theorem:nodegreedy}, adjusted to the selection of edges instead
+% of nodes - and is omitted for brevity.
+
+

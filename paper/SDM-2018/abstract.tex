@@ -1,0 +1,32 @@
+\begin{abstract}
+In networking applications, one often wishes to obtain estimates
+about the number of objects at different parts of the network
+(e.g., the number of cars at an intersection of a road network 
+or the number of packets expected to reach a node in a computer network)
+by monitoring the traffic in a small number of network nodes or edges. 
+We formalize this task by defining the \mcproblem\ problem. 
+
+Given an initial distribution of
+items over the nodes of a {\markovchain}, we wish to
+estimate the distribution of items at subsequent times. 
+We do this by asking a limited number of queries that retrieve, for example,  
+how many items transitioned to a specific node
+or over a specific edge at a particular time.
+We consider different types of queries, each defining a different variant of the {\mcproblem}.
+For each variant, we design efficient algorithms for choosing the  queries that make our estimates 
+as accurate as possible.
+In our experiments with synthetic and real datasets we demonstrate the
+efficiency and the efficacy of our algorithms in a variety of settings.
+
+% -- but are
+%constrained by the type and number of queries we are allowed to perform.
+%The problem consists in choosing the queries so as to 
+%make as accurate estimates as possible.
+%% The problem finds natural application on {\textit{network traffic estimation}}
+%% -- and leads to novel and intuitive definitions of {node} and {edge centrality}
+%% on networks.
+%
+%In this paper, we define variants of the problem for different types 
+%of queries, provide efficient algorithms to solve them, and
+%showcase the performance of the algorithms on real datasets.
+\end{abstract}

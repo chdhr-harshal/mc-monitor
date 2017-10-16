@@ -1,0 +1,133 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%  ltexpprt.tex  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% This is ltexpprt.tex, an example file for use with the SIAM LaTeX2E
+% Preprint Series macros. It is designed to provide double-column output.
+% Please take the time to read the following comments, as they document
+% how to use these macros. This file can be composed and printed out for
+% use as sample output.
+
+% Any comments or questions regarding these macros should be directed to:
+%
+%                 Donna Witzleben
+%                 SIAM
+%                 3600 University City Science Center
+%                 Philadelphia, PA 19104-2688
+%                 USA
+%                 Telephone: (215) 382-9800
+%                 Fax: (215) 386-7999
+%                 e-mail: witzleben@siam.org
+
+
+% This file is to be used as an example for style only. It should not be read
+% for content.
+
+%%%%%%%%%%%%%%% PLEASE NOTE THE FOLLOWING STYLE RESTRICTIONS %%%%%%%%%%%%%%%
+
+%%  1. There are no new tags.  Existing LaTeX tags have been formatted to match
+%%     the Preprint series style.
+%%
+%%  2. You must use \cite in the text to mark your reference citations and
+%%     \bibitem in the listing of references at the end of your chapter. See
+%%     the examples in the following file. If you are using BibTeX, please
+%%     supply the bst file with the manuscript file.
+%%
+%%  3. This macro is set up for two levels of headings (\section and
+%%     \subsection). The macro will automatically number the headings for you.
+%%
+%%  5. No running heads are to be used for this volume.
+%%
+%%  6. Theorems, Lemmas, Definitions, etc. are to be double numbered,
+%%     indicating the section and the occurence of that element
+%%     within that section. (For example, the first theorem in the second
+%%     section would be numbered 2.1. The macro will
+%%     automatically do the numbering for you.
+%%
+%%  7. Figures, equations, and tables must be single-numbered.
+%%     Use existing LaTeX tags for these elements.
+%%     Numbering will be done automatically.
+%%
+%%  8. Page numbering is no longer included in this macro.
+%%     Pagination will be set by the program committee.
+%%
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	%%
+
+
+
+\documentclass[twoside,leqno,twocolumn]{article}
+\usepackage{ltexpprt}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{balance} % to balance last-page columns
+% \usepackage[vlined,linesnumbered,ruled,noend]{algorithm2e}     % algorithms
+\usepackage[hide]{chato-notes}
+
+\input{macros}
+
+\begin{document}
+
+\title{\Large Markov Chain Monitoring}
+
+\author{Harshal A. Chaudhari\thanks{Computer Science Department, Boston University, USA.} \\
+\and
+Michael Mathioudakis\thanks{Universite de Lyon, CNRS.
+INSA-Lyon, LIRIS, UMR5205, F-69621, France.}
+\and
+Evimaria Terzi\footnotemark[1]%\thanks{Computer Science Department, Boston University, USA.}
+}
+\date{}
+
+%\setcounter{chapter}{2} % If you are doing your chapter as chapter one,
+%\setcounter{section}{3} % comment these two lines out.
+
+\maketitle
+
+% Copyright Statement
+% When submitting your final paper to a SIAM proceedings, it is requested that you include 
+% the appropriate copyright in the footer of the paper.  The copyright added should be 
+% consistent with the copyright selected on the copyright form submitted with the paper.
+% Please note that "20XX" should be changed to the year of the meeting.
+
+% Depending on which copyright you agree to when you sign the copyright form, the copyright 
+% can be changed to one of the following after commenting out the default copyright statement
+% above.
+
+%\fancyfoot[R]{\footnotesize{\textbf{Copyright \textcopyright\ 20XX\\
+%Copyright for this paper is retained by authors}}}
+
+%\fancyfoot[R]{\footnotesize{\textbf{Copyright \textcopyright\ 20XX\\
+%Copyright retained by principal author's organization}}}
+
+
+%\pagenumbering{arabic}
+%\setcounter{page}{1}%Leave this line commented out.
+
+\input{abstract}
+
+\input{introduction}
+\input{related}
+\input{setting}
+\input{problems}
+\input{nodes}
+\input{edges}
+%\input{simplenodes}
+% \input{centrality}
+\input{experiments}
+\input{conclusion}
+
+
+\bibliographystyle{plain}
+\bibliography{bibliography}
+
+\clearpage
+
+\input{appendix}
+
+\end{document}
+
+% End of ltexpprt.tex

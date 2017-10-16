@@ -1,0 +1,32 @@
+\section{Conclusions}
+
+In this paper, we introduced the problem of \mcproblem: given
+a distribution of items over a \markovchain, we aim to perform
+a limited number of monitoring operations, so as to adequately
+predict the position of items on the chain after one transition step.
+We studied variants of this problem
+and provided efficient algorithms to solve them. Our experimental evaluation
+demonstrated the superiority of the proposed algorithms compared to 
+baselines and the practical utility of the results in real settings.
+
+%We see this paper as a first step of a line of works to come.
+%Notably, we addressed the problem in a setting that assumed we had full 
+%knowledge of item distribution before transition. 
+A natural extension of this work is to to select monitoring operations under incomplete information
+for initial item distribution
+-- which would allow the operations to be deployed in perpetuity.
+Another future-work direction is to consider different types of 
+monitoring operations such as those
+that combine knowledge of item placement on nodes
+and edges. Finally, we can also consider more complex traffic models
+(e.g., involving queuing and different transition delays between 
+nodes~\cite{gallager2012discrete}).
+In all cases, the algorithms we developed in this paper will serve as 
+the basis for future work.
+
+
+
+
+\todo[MM]{An interesting meta-question is to see which algorithm
+leads to better objective function: greedy for \parentstransitions\
+or for \childrentransitions?}
