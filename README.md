@@ -1,4 +1,4 @@
-# Markov Chain Monitoring Project
+# Markov Chain Monitoring
 
 <strong>Authors:</strong>
 <ul>
